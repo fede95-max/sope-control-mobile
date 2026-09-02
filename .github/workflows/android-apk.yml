@@ -1,0 +1,86 @@
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  EXPO_NO_TELEMETRY: 1
+  EXPO_PUBLIC_API_BASE_URL: https://zvoiin6umc2fek72xbgxhans2u0iiynq.lambda-url.sa-east-1.on.aws/api/v1
+  ANDROID_VERSION_CODE: ${{ github.run_number }}
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Point the app at production
+        run: echo "EXPO_PUBLIC_API_BASE_URL=$EXPO_PUBLIC_API_BASE_URL" > .env
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --non-interactive --no-install
+
+      - name: Build release APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+        env:
+          GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+
+      - name: Prepare APK
+        run: |
+          mkdir -p dist
+          apk="$(find android/app/build/outputs/apk -name '*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" dist/sope-control.apk
+          ls -lh dist/sope-control.apk
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sope-control-apk
+          path: dist/sope-control.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk
+          name: Sope Control APK
+          body: |
+            APK de Android para instalar en el teléfono.
+
+            API: `https://zvoiin6umc2fek72xbgxhans2u0iiynq.lambda-url.sa-east-1.on.aws/api/v1`
+
+            En Android, permití instalar apps de orígenes desconocidos y abrí `sope-control.apk`.
+          files: dist/sope-control.apk
+          fail_on_unmatched_files: true
+          make_latest: true
+          target_commitish: ${{ github.sha }}
