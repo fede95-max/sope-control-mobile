@@ -3,9 +3,9 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { useAuth } from "../auth/AuthContext";
 import type { MoreStackParamList } from "../navigation/types";
-import { colors, space } from "../theme";
+import { colors } from "../theme";
 import { Card, Row } from "../ui/list";
-import { Screen } from "../ui/primitives";
+import { Screen, screenContentStyle } from "../ui/primitives";
 
 const links: Array<{ key: keyof MoreStackParamList; title: string; subtitle: string }> = [
   { key: "Categories", title: "Categorías", subtitle: "Ingresos, egresos y ambos" },
@@ -20,7 +20,7 @@ export function MoreScreen() {
 
   return (
     <Screen title="Más">
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={screenContentStyle}>
         <Text style={styles.email}>{auth.me?.user.email}</Text>
         {links.map((link) => (
           <Card key={link.key} onPress={() => navigation.navigate(link.key)}>
@@ -36,11 +36,6 @@ export function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
   email: {
     color: colors.muted,
     fontSize: 14,

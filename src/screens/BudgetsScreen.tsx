@@ -4,7 +4,7 @@ import { createBudget, deleteBudget, listBudgets, listCategories, updateBudget }
 import type { Budget, Category } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { currentYearMonth, formatAmountFromMinor, parseAmountToMinor } from "../money";
-import { colors, space } from "../theme";
+import { colors } from "../theme";
 import { GhostButton, MonthStepper, SearchBar } from "../ui/controls";
 import { SelectField, TextField } from "../ui/fields";
 import { Amount, Card, Row } from "../ui/list";
@@ -15,6 +15,7 @@ import {
   Screen,
   confirmAction,
   matchesText,
+  screenContentStyle,
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
@@ -94,7 +95,7 @@ export function BudgetsScreen() {
       }
     >
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <MonthStepper onChange={setMonth} value={month} />
@@ -224,11 +225,6 @@ export function BudgetsScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
   barTrack: {
     height: 8,
     backgroundColor: colors.line,

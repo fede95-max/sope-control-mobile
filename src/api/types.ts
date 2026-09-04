@@ -139,8 +139,8 @@ export type Dashboard = {
   month: string;
   totals: Array<{
     currency: string;
-    incomeMinor: number;
-    expenseMinor: number;
+    accountsMinor: number;
+    cardMovementsMinor: number;
     balanceMinor: number;
   }>;
   expensesByCategory: Array<{

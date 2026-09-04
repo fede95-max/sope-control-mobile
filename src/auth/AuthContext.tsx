@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ApiRequestError } from "../api/client";
 import { getMe, login as loginRequest, signup as signupRequest } from "../api/sope";
 import type { MeResponse } from "../api/types";
 import { clearAccessToken, readAccessToken, writeAccessToken } from "../session";
@@ -56,7 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await loadProfile(nextToken);
       },
       signup: async (email, password) => {
-        await signupRequest(email, password);
+        try {
+          await signupRequest(email, password);
+        } catch (cause: unknown) {
+          if (!(cause instanceof ApiRequestError) || cause.code !== "USER_ALREADY_EXISTS") {
+            throw cause;
+          }
+        }
         const nextToken = await loginRequest(email, password);
         await writeAccessToken(nextToken);
         await loadProfile(nextToken);

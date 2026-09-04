@@ -12,7 +12,7 @@ import type { CardOverview } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { cardKindLabel } from "../labels";
 import { currentYearMonth, formatAmountFromMinor, formatCalendarDate } from "../money";
-import { colors, space } from "../theme";
+import { colors } from "../theme";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
@@ -23,6 +23,7 @@ import {
   Screen,
   confirmAction,
   matchesText,
+  screenContentStyle,
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
@@ -152,7 +153,7 @@ export function CardsScreen() {
   return (
     <Screen title="Tarjetas" actions={<GhostButton label="Nueva" onPress={openCreate} />}>
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <MonthStepper onChange={setViewMonth} value={viewMonth} />
@@ -358,11 +359,6 @@ export function CardsScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
   totals: {
     gap: 4,
   },

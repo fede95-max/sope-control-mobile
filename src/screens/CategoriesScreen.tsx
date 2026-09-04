@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { RefreshControl, ScrollView } from "react-native";
 import { createCategory, deleteCategory, listCategories, updateCategory } from "../api/sope";
 import type { Category } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { categoryKindLabel } from "../labels";
-import { space } from "../theme";
 import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
 import { SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
@@ -15,6 +14,7 @@ import {
   Screen,
   confirmAction,
   matchesText,
+  screenContentStyle,
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
@@ -78,7 +78,7 @@ export function CategoriesScreen() {
       }
     >
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <SearchBar onChange={setQuery} value={query} />
@@ -182,11 +182,3 @@ export function CategoriesScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
-});

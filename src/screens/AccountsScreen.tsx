@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { RefreshControl, ScrollView } from "react-native";
 import { createAccount, deleteAccount, listAccounts, updateAccount } from "../api/sope";
 import type { Account } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { accountTypeLabel } from "../labels";
 import { formatAmountFromMinor } from "../money";
-import { space } from "../theme";
 import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
 import { SelectField, TextField } from "../ui/fields";
 import { Amount, Card, Row } from "../ui/list";
@@ -16,6 +15,7 @@ import {
   Screen,
   confirmAction,
   matchesText,
+  screenContentStyle,
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
@@ -87,7 +87,7 @@ export function AccountsScreen() {
   return (
     <Screen title="Cuentas" actions={<GhostButton label="Nueva" onPress={openCreate} />}>
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <SearchBar onChange={setQuery} value={query} />
@@ -176,11 +176,3 @@ export function AccountsScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
-});

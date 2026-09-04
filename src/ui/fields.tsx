@@ -1,6 +1,7 @@
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatCalendarDate, parseCalendarDate, toCalendarDate } from "../money";
 import { colors, space } from "../theme";
 
@@ -55,6 +56,8 @@ export function SelectField({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, space.sm);
   const selected = options.find((option) => option.value === value);
 
   return (
@@ -67,22 +70,26 @@ export function SelectField({
       </Pressable>
       <Modal animationType="fade" onRequestClose={() => setOpen(false)} transparent visible={open}>
         <Pressable onPress={() => setOpen(false)} style={styles.overlay}>
-          <View style={styles.sheet}>
-            {options.map((option) => (
-              <Pressable
-                key={option.value === "" ? `empty-${option.label}` : option.value}
-                onPress={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                }}
-                style={styles.option}
-              >
-                <Text style={[styles.optionText, option.value === value ? styles.optionSelected : undefined]}>
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <Pressable onPress={() => {}}>
+            <View style={[styles.sheet, { paddingBottom: bottomInset }]}>
+              <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
+                {options.map((option) => (
+                  <Pressable
+                    key={option.value === "" ? `empty-${option.label}` : option.value}
+                    onPress={() => {
+                      onChange(option.value);
+                      setOpen(false);
+                    }}
+                    style={styles.option}
+                  >
+                    <Text style={[styles.optionText, option.value === value ? styles.optionSelected : undefined]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -99,6 +106,8 @@ export function DateField({
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, space.sm);
   const date = value === "" ? new Date() : parseCalendarDate(value);
 
   function onPick(_event: DateTimePickerEvent, next?: Date) {
@@ -124,7 +133,7 @@ export function DateField({
       {Platform.OS === "ios" ? (
         <Modal animationType="slide" onRequestClose={() => setOpen(false)} transparent visible={open}>
           <Pressable onPress={() => setOpen(false)} style={styles.overlay}>
-            <View style={styles.iosPicker}>
+            <View style={[styles.iosPicker, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
               <Pressable onPress={() => setOpen(false)} style={styles.doneRow}>
                 <Text style={styles.done}>Listo</Text>
               </Pressable>
@@ -198,7 +207,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    paddingBottom: space.lg,
   },
   doneRow: {
     alignItems: "flex-end",
