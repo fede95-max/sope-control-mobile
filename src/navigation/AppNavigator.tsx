@@ -1,6 +1,7 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../auth/AuthContext";
 import { AccountsScreen } from "../screens/AccountsScreen";
 import { BudgetsScreen } from "../screens/BudgetsScreen";
@@ -12,7 +13,7 @@ import { LoginScreen } from "../screens/LoginScreen";
 import { MoreScreen } from "../screens/MoreScreen";
 import { RecurringScreen } from "../screens/RecurringScreen";
 import { TransactionsScreen } from "../screens/TransactionsScreen";
-import { colors } from "../theme";
+import { colors, space } from "../theme";
 import type { MainTabParamList, MoreStackParamList } from "./types";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -31,6 +32,9 @@ function MoreNavigator() {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const tabBarBottomInset = Platform.OS === "android" ? Math.max(insets.bottom, space.sm) : 0;
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -38,7 +42,15 @@ function MainTabs() {
         tabBarActiveTintColor: colors.teal,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
-        tabBarStyle: { backgroundColor: colors.surface },
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          ...(tabBarBottomInset > 0
+            ? {
+                paddingBottom: tabBarBottomInset,
+                height: 56 + tabBarBottomInset,
+              }
+            : undefined),
+        },
       }}
     >
       <Tab.Screen

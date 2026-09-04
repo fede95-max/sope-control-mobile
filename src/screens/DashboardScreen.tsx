@@ -7,7 +7,7 @@ import { currentYearMonth, formatAmountFromMinor } from "../money";
 import { colors, space } from "../theme";
 import { GhostButton, MonthStepper, SearchBar } from "../ui/controls";
 import { Card, Row, Amount } from "../ui/list";
-import { EmptyState, ErrorBanner, Screen, matchesText, toErrorMessage } from "../ui/primitives";
+import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
 
 export function DashboardScreen() {
   const auth = useAuth();
@@ -68,7 +68,7 @@ export function DashboardScreen() {
       }
     >
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <MonthStepper onChange={setMonth} value={month} />
@@ -76,14 +76,16 @@ export function DashboardScreen() {
         {(dashboard?.totals ?? []).map((total) => (
           <Card key={total.currency}>
             <Text style={styles.currency}>{total.currency}</Text>
-            <Text style={styles.muted}>Ingresos {formatAmountFromMinor(total.incomeMinor)}</Text>
-            <Text style={styles.muted}>Egresos {formatAmountFromMinor(total.expenseMinor)}</Text>
+            <Text style={styles.muted}>En cuenta {formatAmountFromMinor(total.accountsMinor)}</Text>
+            <Text style={styles.muted}>
+              Tarjetas movimientos {formatAmountFromMinor(total.cardMovementsMinor)}
+            </Text>
             <Text style={styles.balance}>Balance {formatAmountFromMinor(total.balanceMinor)}</Text>
           </Card>
         ))}
         {dashboard !== undefined && dashboard.totals.length === 0 ? (
           <Card>
-            <EmptyState text={`No hay movimientos en ${month}.`} />
+            <EmptyState text="No hay cuentas ni movimientos de tarjeta para mostrar." />
           </Card>
         ) : null}
         <Text style={styles.section}>Gastos por categoría</Text>
@@ -106,11 +108,6 @@ export function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
   currency: {
     fontSize: 18,
     fontWeight: "700",

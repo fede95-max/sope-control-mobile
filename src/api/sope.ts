@@ -382,8 +382,8 @@ export async function getDashboard(token: string, month: string): Promise<Dashbo
           return [
             {
               currency: readString(item, "currency"),
-              incomeMinor: readNumber(item, "incomeMinor"),
-              expenseMinor: readNumber(item, "expenseMinor"),
+              accountsMinor: readNumber(item, "accountsMinor"),
+              cardMovementsMinor: readNumber(item, "cardMovementsMinor"),
               balanceMinor: readNumber(item, "balanceMinor"),
             },
           ];

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
+import { RefreshControl, ScrollView, Text } from "react-native";
 import {
   createTransaction,
   deleteTransaction,
@@ -20,7 +20,6 @@ import {
   formatInstallment,
   parseAmountToMinor,
 } from "../money";
-import { space } from "../theme";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
@@ -32,6 +31,7 @@ import {
   StatusPill,
   confirmAction,
   matchesText,
+  screenContentStyle,
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
@@ -225,7 +225,7 @@ export function TransactionsScreen() {
   return (
     <Screen title="Movimientos" actions={<GhostButton label="Nuevo" onPress={openCreate} />}>
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <MonthStepper onChange={setMonth} value={month} />
@@ -429,11 +429,3 @@ export function TransactionsScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
-});

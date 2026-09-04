@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { RefreshControl, ScrollView } from "react-native";
 import {
   createRecurring,
   deleteRecurring,
@@ -13,7 +13,6 @@ import type { Account, Card, Category, Recurring } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { typeLabel } from "../labels";
 import { currentCalendarDate, formatAmountFromMinor, formatCalendarDate, parseAmountToMinor } from "../money";
-import { space } from "../theme";
 import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
@@ -24,6 +23,7 @@ import {
   Screen,
   confirmAction,
   matchesText,
+  screenContentStyle,
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
@@ -168,7 +168,7 @@ export function RecurringScreen() {
       }
     >
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <SearchBar onChange={setQuery} value={query} />
@@ -213,7 +213,7 @@ export function RecurringScreen() {
             : () => {
                 void confirmAction(
                   "Eliminar recurrente",
-                  "¿Eliminar este recurrente? Los movimientos ya generados no se borran.",
+                  "¿Eliminar este recurrente? Se borran los movimientos de este mes en adelante. Los meses anteriores quedan.",
                   "Eliminar",
                 ).then((ok) => {
                   if (!ok || token === undefined || editingId === undefined) {
@@ -330,7 +330,9 @@ export function RecurringScreen() {
             value={installmentCount}
           />
         ) : null}
-        {hasInstallments ? null : <DateField label="Hasta (opcional)" onChange={setEndOn} value={endOn} />}
+        {hasInstallments ? null : (
+          <DateField label="Hasta (vacío = 24 meses)" onChange={setEndOn} value={endOn} />
+        )}
         <TextField keyboardType="numeric" label="Día de cobro" onChangeText={setDayOfMonth} value={dayOfMonth} />
         <SelectField
           label="Categoría"
@@ -372,11 +374,3 @@ export function RecurringScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
-});

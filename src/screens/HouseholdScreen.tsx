@@ -2,11 +2,11 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, Text } from "react-native";
 import { inviteMember } from "../api/sope";
 import { useAuth } from "../auth/AuthContext";
-import { colors, space } from "../theme";
+import { colors } from "../theme";
 import { GhostButton } from "../ui/controls";
 import { TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
-import { EmptyState, ErrorBanner, FormSheet, Screen, toErrorMessage, useFormDirty } from "../ui/primitives";
+import { EmptyState, ErrorBanner, FormSheet, Screen, screenContentStyle, toErrorMessage, useFormDirty } from "../ui/primitives";
 
 export function HouseholdScreen() {
   const auth = useAuth();
@@ -25,7 +25,7 @@ export function HouseholdScreen() {
 
   return (
     <Screen title="Hogar" actions={<GhostButton label="Invitar" onPress={() => setFormOpen(true)} />}>
-      <ScrollView contentContainerStyle={styles.body}>
+      <ScrollView contentContainerStyle={screenContentStyle}>
         <ErrorBanner error={error} />
         <Text style={styles.section}>Miembros</Text>
         {(household?.members ?? []).map((member) => (
@@ -75,11 +75,6 @@ export function HouseholdScreen() {
 }
 
 const styles = StyleSheet.create({
-  body: {
-    paddingHorizontal: space.lg,
-    paddingBottom: 40,
-    gap: space.md,
-  },
   section: {
     fontSize: 16,
     fontWeight: "700",

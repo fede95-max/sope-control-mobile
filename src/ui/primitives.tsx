@@ -76,6 +76,12 @@ export function ErrorBanner({ error }: { error: string | undefined }) {
   );
 }
 
+export const screenContentStyle = {
+  paddingHorizontal: space.lg,
+  paddingBottom: space.lg + space.md,
+  gap: space.md,
+} as const;
+
 export function Screen({
   title,
   actions,

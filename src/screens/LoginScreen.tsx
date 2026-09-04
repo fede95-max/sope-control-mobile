@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiRequestError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { apiBaseUrl } from "../config";
@@ -43,7 +44,8 @@ export function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.screen}>
+    <SafeAreaView style={styles.screen}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
       <View style={styles.card}>
         <Text style={styles.title}>sope-control</Text>
         <Text style={styles.subtitle}>Finanzas del hogar</Text>
@@ -93,7 +95,8 @@ export function LoginScreen() {
         </Pressable>
         <Text style={styles.hint}>API: {apiBaseUrl}</Text>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -101,6 +104,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.ink,
+  },
+  flex: {
+    flex: 1,
     justifyContent: "center",
     padding: 24,
   },
