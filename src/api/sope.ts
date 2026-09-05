@@ -19,6 +19,10 @@ import type {
   CardStatement,
   Category,
   Dashboard,
+  MassImport,
+  MassImportDraftItem,
+  MassImportFile,
+  MassImportUpload,
   MeResponse,
   Recurring,
   Transaction,
@@ -81,6 +85,7 @@ function parseTransaction(value: unknown): Transaction {
     statementYearMonth: readNullableString(item, "statementYearMonth"),
     installmentCount: readNullableNumber(item, "installmentCount"),
     installmentNumber: readNullableNumber(item, "installmentNumber"),
+    massImportId: readNullableString(item, "massImportId"),
   };
 }
 
@@ -234,9 +239,9 @@ export async function getMe(token: string): Promise<MeResponse> {
   });
 }
 
-export async function listAccounts(token: string): Promise<Account[]> {
+export async function listAccounts(token: string, includeInactive = false): Promise<Account[]> {
   return apiRequest({
-    path: "/accounts",
+    path: includeInactive ? "/accounts?includeInactive=true" : "/accounts",
     token,
     parseJson: (payload) => readArray(requireRecord(payload, "accounts"), "accounts").map(parseAccount),
   });
@@ -405,9 +410,9 @@ export async function getDashboard(token: string, month: string): Promise<Dashbo
   });
 }
 
-export async function listCards(token: string): Promise<Card[]> {
+export async function listCards(token: string, includeInactive = false): Promise<Card[]> {
   return apiRequest({
-    path: "/cards",
+    path: includeInactive ? "/cards?includeInactive=true" : "/cards",
     token,
     parseJson: (payload) => readArray(requireRecord(payload, "cards"), "cards").map(parseCard),
   });
@@ -641,4 +646,207 @@ export async function shareMonthExcel(token: string, month: string): Promise<voi
     UTI: "org.openxmlformats.spreadsheetml.sheet",
     dialogTitle: file.fileName,
   });
+}
+
+function parseMassImportStatus(value: unknown): MassImport["status"] {
+  if (value === "DRAFT" || value === "CONFIRMED" || value === "CANCELLED" || value === "DISCARDED") {
+    return value;
+  }
+  return "DRAFT";
+}
+
+function parseMassImportFile(value: unknown): MassImportFile {
+  const item = requireRecord(value, "massImportFile");
+  return {
+    id: readString(item, "id"),
+    contentType: readString(item, "contentType"),
+    sizeBytes: readNumber(item, "sizeBytes"),
+    originalFileName: readString(item, "originalFileName"),
+    sortOrder: readNumber(item, "sortOrder"),
+  };
+}
+
+function parseMassImportDraftItem(value: unknown): MassImportDraftItem {
+  const item = requireRecord(value, "draftItem");
+  return {
+    clientId: readString(item, "clientId"),
+    selected: readBoolean(item, "selected"),
+    source: item.source === "MANUAL" ? "MANUAL" : "AI",
+    type: item.type === "INCOME" ? "INCOME" : "EXPENSE",
+    status: parseTransactionStatus(item.status),
+    amountMinor: readNumber(item, "amountMinor"),
+    currency: typeof item.currency === "string" ? item.currency : "",
+    description: readNullableString(item, "description"),
+    occurredOn: readNullableString(item, "occurredOn") ?? "",
+    approvedOn: readNullableString(item, "approvedOn") ?? "",
+    categoryId: readNullableString(item, "categoryId"),
+    installmentCount: readNullableNumber(item, "installmentCount"),
+    installmentNumber: readNullableNumber(item, "installmentNumber"),
+  };
+}
+
+function parseMassImport(value: unknown): MassImport {
+  const item = requireRecord(value, "massImport");
+  return {
+    id: readString(item, "id"),
+    status: parseMassImportStatus(item.status),
+    importedFromImage: readBoolean(item, "importedFromImage"),
+    accountId: readNullableString(item, "accountId"),
+    cardId: readNullableString(item, "cardId"),
+    files: readArray(item, "files").map(parseMassImportFile),
+    draftItems: readArray(item, "draftItems").map(parseMassImportDraftItem),
+    fileCount: readNumber(item, "fileCount"),
+    detectedCount: readNumber(item, "detectedCount"),
+    confirmedCount: readNullableNumber(item, "confirmedCount"),
+    createdAt: readString(item, "createdAt"),
+    confirmedAt: readNullableString(item, "confirmedAt"),
+  };
+}
+
+export function toMassImportDraftPayload(items: MassImportDraftItem[]): Record<string, unknown>[] {
+  return items.map((item) => ({
+    clientId: item.clientId,
+    selected: item.selected,
+    source: item.source,
+    type: item.type,
+    status: item.status,
+    amountMinor: item.amountMinor,
+    currency: item.currency,
+    description: item.description ?? null,
+    occurredOn: item.occurredOn === "" ? null : item.occurredOn,
+    approvedOn: item.approvedOn === "" ? null : item.approvedOn,
+    categoryId: item.categoryId ?? null,
+    installmentCount: item.installmentCount ?? null,
+    installmentNumber: item.installmentNumber ?? null,
+  }));
+}
+
+export async function listMassImports(token: string): Promise<MassImport[]> {
+  return apiRequest({
+    path: "/mass-imports",
+    token,
+    parseJson: (payload) =>
+      readArray(requireRecord(payload, "massImports"), "massImports").map(parseMassImport),
+  });
+}
+
+export async function createMassImport(
+  token: string,
+  body: {
+    accountId?: string;
+    cardId?: string;
+    files: Array<{ contentType: string; sizeBytes: number; originalFileName: string }>;
+  },
+): Promise<{ massImport: MassImport; uploads: MassImportUpload[] }> {
+  return apiRequest({
+    path: "/mass-imports",
+    method: "POST",
+    token,
+    body,
+    parseJson: (payload) => {
+      const root = requireRecord(payload, "createMassImport");
+      return {
+        massImport: parseMassImport(root.massImport),
+        uploads: readArray(root, "uploads").map((upload) => {
+          const item = requireRecord(upload, "upload");
+          return {
+            fileId: readString(item, "fileId"),
+            uploadUrl: readString(item, "uploadUrl"),
+            expiresInSeconds: readNumber(item, "expiresInSeconds"),
+          };
+        }),
+      };
+    },
+  });
+}
+
+export async function getMassImport(token: string, id: string): Promise<MassImport> {
+  return apiRequest({
+    path: `/mass-imports/${id}`,
+    token,
+    parseJson: (payload) => parseMassImport(requireRecord(payload, "massImport").massImport),
+  });
+}
+
+export async function updateMassImportDraft(
+  token: string,
+  id: string,
+  draftItems: MassImportDraftItem[],
+): Promise<MassImport> {
+  return apiRequest({
+    path: `/mass-imports/${id}`,
+    method: "PATCH",
+    token,
+    body: { draftItems: toMassImportDraftPayload(draftItems) },
+    parseJson: (payload) => parseMassImport(requireRecord(payload, "massImport").massImport),
+  });
+}
+
+export async function analyzeMassImport(token: string, id: string): Promise<MassImport> {
+  return apiRequest({
+    path: `/mass-imports/${id}/analyze`,
+    method: "POST",
+    token,
+    body: {},
+    parseJson: (payload) => parseMassImport(requireRecord(payload, "massImport").massImport),
+  });
+}
+
+export async function confirmMassImport(
+  token: string,
+  id: string,
+  draftItems: MassImportDraftItem[],
+): Promise<MassImport> {
+  return apiRequest({
+    path: `/mass-imports/${id}/confirm`,
+    method: "POST",
+    token,
+    body: { draftItems: toMassImportDraftPayload(draftItems) },
+    parseJson: (payload) => parseMassImport(requireRecord(payload, "massImport").massImport),
+  });
+}
+
+export async function cancelMassImport(token: string, id: string): Promise<MassImport> {
+  return apiRequest({
+    path: `/mass-imports/${id}/cancel`,
+    method: "POST",
+    token,
+    body: {},
+    parseJson: (payload) => parseMassImport(requireRecord(payload, "massImport").massImport),
+  });
+}
+
+export async function getMassImportFileDownload(
+  token: string,
+  id: string,
+  fileId: string,
+): Promise<{ downloadUrl: string; file: MassImportFile }> {
+  return apiRequest({
+    path: `/mass-imports/${id}/files/${fileId}/download`,
+    token,
+    parseJson: (payload) => {
+      const root = requireRecord(payload, "download");
+      return {
+        downloadUrl: readString(root, "downloadUrl"),
+        file: parseMassImportFile(root.file),
+      };
+    },
+  });
+}
+
+export async function uploadMassImportFile(
+  uploadUrl: string,
+  uri: string,
+  contentType: string,
+): Promise<void> {
+  const fileResponse = await fetch(uri);
+  const blob = await fileResponse.blob();
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: blob,
+  });
+  if (!response.ok) {
+    throw new Error("No se pudo subir el archivo");
+  }
 }

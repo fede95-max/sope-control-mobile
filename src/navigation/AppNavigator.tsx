@@ -10,6 +10,9 @@ import { CategoriesScreen } from "../screens/CategoriesScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
 import { HouseholdScreen } from "../screens/HouseholdScreen";
 import { LoginScreen } from "../screens/LoginScreen";
+import { MassImportNewScreen } from "../screens/MassImportNewScreen";
+import { MassImportReviewScreen } from "../screens/MassImportReviewScreen";
+import { MassImportsScreen } from "../screens/MassImportsScreen";
 import { MoreScreen } from "../screens/MoreScreen";
 import { RecurringScreen } from "../screens/RecurringScreen";
 import { TransactionsScreen } from "../screens/TransactionsScreen";
@@ -27,6 +30,9 @@ function MoreNavigator() {
       <MoreStack.Screen component={BudgetsScreen} name="Budgets" />
       <MoreStack.Screen component={RecurringScreen} name="Recurring" />
       <MoreStack.Screen component={HouseholdScreen} name="Household" />
+      <MoreStack.Screen component={MassImportsScreen} name="MassImports" />
+      <MoreStack.Screen component={MassImportNewScreen} name="MassImportNew" />
+      <MoreStack.Screen component={MassImportReviewScreen} name="MassImportReview" />
     </MoreStack.Navigator>
   );
 }

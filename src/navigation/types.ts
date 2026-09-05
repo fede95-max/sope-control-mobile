@@ -12,4 +12,7 @@ export type MoreStackParamList = {
   Budgets: undefined;
   Recurring: undefined;
   Household: undefined;
+  MassImports: undefined;
+  MassImportNew: undefined;
+  MassImportReview: { id: string };
 };

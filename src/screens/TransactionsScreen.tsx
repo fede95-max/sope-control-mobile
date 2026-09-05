@@ -130,7 +130,6 @@ export function TransactionsScreen() {
     cardId,
     installmentCount,
   ]);
-  const selectedCard = cards.find((card) => card.id === cardId);
   const filteredCategories = categories.filter((category) => {
     if (type === "TRANSFER") {
       return false;
@@ -204,9 +203,6 @@ export function TransactionsScreen() {
       body.categoryId = categoryId;
       if (type === "EXPENSE" && cardId !== "") {
         body.cardId = cardId;
-        if (selectedCard?.kind !== "CREDIT") {
-          body.accountId = accountId;
-        }
       } else {
         body.accountId = accountId;
       }
@@ -400,8 +396,7 @@ export function TransactionsScreen() {
                 label="Tarjeta (opcional)"
                 onChange={(nextCardId) => {
                   setCardId(nextCardId);
-                  const card = cards.find((item) => item.id === nextCardId);
-                  if (card?.kind === "CREDIT") {
+                  if (nextCardId !== "") {
                     setAccountId("");
                   }
                 }}
@@ -415,7 +410,7 @@ export function TransactionsScreen() {
                 value={cardId}
               />
             ) : null}
-            {selectedCard?.kind === "CREDIT" ? null : (
+            {cardId !== "" ? null : (
               <SelectField
                 label="Cuenta"
                 onChange={setAccountId}
