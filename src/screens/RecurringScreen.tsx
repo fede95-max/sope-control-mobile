@@ -11,6 +11,7 @@ import {
 } from "../api/sope";
 import type { Account, Card, Category, Recurring } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { typeLabel } from "../labels";
 import { currentCalendarDate, formatAmountFromMinor, formatCalendarDate, parseAmountToMinor } from "../money";
 import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
@@ -30,6 +31,7 @@ import {
 
 export function RecurringScreen() {
   const auth = useAuth();
+  const { can } = usePermissions();
   const token = auth.token;
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [items, setItems] = useState<Recurring[]>([]);
@@ -157,14 +159,16 @@ export function RecurringScreen() {
     <Screen
       title="Recurrentes"
       actions={
-        <GhostButton
-          label="Nuevo"
-          onPress={() => {
-            resetForm();
-            setError(undefined);
-            setFormOpen(true);
-          }}
-        />
+        can("recurring:write") ? (
+          <GhostButton
+            label="Nuevo"
+            onPress={() => {
+              resetForm();
+              setError(undefined);
+              setFormOpen(true);
+            }}
+          />
+        ) : undefined
       }
     >
       <ScrollView
@@ -208,7 +212,7 @@ export function RecurringScreen() {
         error={error}
         onClose={resetForm}
         onDelete={
-          editingId === undefined || token === undefined
+          editingId === undefined || token === undefined || !can("recurring:delete")
             ? undefined
             : () => {
                 void confirmAction(

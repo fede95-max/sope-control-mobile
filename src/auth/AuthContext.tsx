@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiRequestError } from "../api/client";
-import { getMe, login as loginRequest, signup as signupRequest } from "../api/sope";
+import { getMe, login as loginRequest, signup as signupRequest, switchActiveHousehold } from "../api/sope";
 import type { MeResponse } from "../api/types";
 import { clearAccessToken, readAccessToken, writeAccessToken } from "../session";
 
@@ -12,6 +12,7 @@ type AuthContextValue = {
   signup: (email: string, password: string) => Promise<void>;
   logout: () => void;
   reload: () => Promise<void>;
+  switchHousehold: (householdId: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -77,6 +78,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (token === undefined) {
           return;
         }
+        await loadProfile(token);
+      },
+      switchHousehold: async (householdId: string) => {
+        if (token === undefined) {
+          return;
+        }
+        await switchActiveHousehold(token, householdId);
         await loadProfile(token);
       },
     }),

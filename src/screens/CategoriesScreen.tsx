@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { createCategory, deleteCategory, listCategories, updateCategory } from "../api/sope";
 import type { Category } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { categoryKindLabel } from "../labels";
+import { CategoryChip, CATEGORY_COLOR_PRESETS } from "../ui/CategoryChip";
 import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
+import { colors, space } from "../theme";
 import { SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
 import {
@@ -21,10 +24,12 @@ import {
 
 export function CategoriesScreen() {
   const token = useAuth().token;
+  const { can } = usePermissions();
   const [categories, setCategories] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("EXPENSE");
+  const [color, setColor] = useState("#64748b");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
@@ -54,12 +59,13 @@ export function CategoriesScreen() {
       return matchesText([category.name, categoryKindLabel(category.kind), category.seedCode], query);
     });
   }, [categories, query, kindFilter]);
-  const dirty = useFormDirty(formOpen, [name, kind]);
+  const dirty = useFormDirty(formOpen, [name, kind, color]);
 
   function resetForm() {
     setEditingId(undefined);
     setName("");
     setKind("EXPENSE");
+    setColor("#64748b");
     setFormOpen(false);
   }
 
@@ -67,14 +73,16 @@ export function CategoriesScreen() {
     <Screen
       title="Categorías"
       actions={
-        <GhostButton
-          label="Nueva"
-          onPress={() => {
-            resetForm();
-            setError(undefined);
-            setFormOpen(true);
-          }}
-        />
+        can("categories:write") ? (
+          <GhostButton
+            label="Nueva"
+            onPress={() => {
+              resetForm();
+              setError(undefined);
+              setFormOpen(true);
+            }}
+          />
+        ) : undefined
       }
     >
       <ScrollView
@@ -99,6 +107,7 @@ export function CategoriesScreen() {
                 setEditingId(category.id);
                 setName(category.name);
                 setKind(category.kind);
+                setColor(category.color || "#64748b");
                 setError(undefined);
                 setFormOpen(true);
               }}
@@ -108,6 +117,7 @@ export function CategoriesScreen() {
                 meta={category.seedCode}
                 title={category.name}
               />
+              <CategoryChip name={category.name} color={category.color} />
             </Card>
           ))
         )}
@@ -118,7 +128,7 @@ export function CategoriesScreen() {
         error={error}
         onClose={resetForm}
         onDelete={
-          editingId === undefined || token === undefined
+          editingId === undefined || token === undefined || !can("categories:delete")
             ? undefined
             : () => {
                 void confirmAction("Eliminar categoría", "¿Eliminar esta categoría?", "Eliminar").then((ok) => {
@@ -142,7 +152,7 @@ export function CategoriesScreen() {
             return;
           }
           setBusy(true);
-          const body = { name: name.trim(), kind };
+          const body = { name: name.trim(), kind, color };
           if (editingId === undefined) {
             void createCategory(token, body)
               .then((category) => {
@@ -178,7 +188,44 @@ export function CategoriesScreen() {
           ]}
           value={kind}
         />
+        <View style={styles.colorBlock}>
+          <CategoryChip name={name.trim() === "" ? "Categoría" : name.trim()} color={color} />
+          <View style={styles.swatches}>
+            {CATEGORY_COLOR_PRESETS.map((preset) => (
+              <Pressable
+                key={preset}
+                onPress={() => setColor(preset)}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: preset },
+                  color === preset ? styles.swatchActive : undefined,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
       </FormSheet>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  colorBlock: {
+    gap: space.sm,
+  },
+  swatches: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  swatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.line,
+  },
+  swatchActive: {
+    borderColor: colors.ink,
+  },
+});
