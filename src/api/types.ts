@@ -65,6 +65,7 @@ export type Transaction = {
   statementYearMonth: string | undefined;
   installmentCount: number | undefined;
   installmentNumber: number | undefined;
+  massImportId: string | undefined;
 };
 
 export type Card = {
@@ -148,4 +149,51 @@ export type Dashboard = {
     amountMinor: number;
     currency: string;
   }>;
+};
+
+export type MassImportStatus = "DRAFT" | "CONFIRMED" | "CANCELLED" | "DISCARDED";
+
+export type MassImportFile = {
+  id: string;
+  contentType: string;
+  sizeBytes: number;
+  originalFileName: string;
+  sortOrder: number;
+};
+
+export type MassImportDraftItem = {
+  clientId: string;
+  selected: boolean;
+  source: "AI" | "MANUAL";
+  type: "INCOME" | "EXPENSE";
+  status: TransactionStatus;
+  amountMinor: number;
+  currency: string;
+  description: string | undefined;
+  occurredOn: string;
+  approvedOn: string;
+  categoryId: string | undefined;
+  installmentCount: number | undefined;
+  installmentNumber: number | undefined;
+};
+
+export type MassImport = {
+  id: string;
+  status: MassImportStatus;
+  importedFromImage: boolean;
+  accountId: string | undefined;
+  cardId: string | undefined;
+  files: MassImportFile[];
+  draftItems: MassImportDraftItem[];
+  fileCount: number;
+  detectedCount: number;
+  confirmedCount: number | undefined;
+  createdAt: string;
+  confirmedAt: string | undefined;
+};
+
+export type MassImportUpload = {
+  fileId: string;
+  uploadUrl: string;
+  expiresInSeconds: number;
 };

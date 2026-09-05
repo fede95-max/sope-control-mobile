@@ -7,7 +7,12 @@ import { colors } from "../theme";
 import { Card, Row } from "../ui/list";
 import { Screen, screenContentStyle } from "../ui/primitives";
 
-const links: Array<{ key: keyof MoreStackParamList; title: string; subtitle: string }> = [
+const links: Array<{
+  key: "MassImports" | "Categories" | "Budgets" | "Recurring" | "Household";
+  title: string;
+  subtitle: string;
+}> = [
+  { key: "MassImports", title: "Movimientos masivos", subtitle: "Importar desde imagen o PDF" },
   { key: "Categories", title: "Categorías", subtitle: "Ingresos, egresos y ambos" },
   { key: "Budgets", title: "Presupuestos", subtitle: "Límite mensual por categoría" },
   { key: "Recurring", title: "Recurrentes", subtitle: "Cobros y pagos que se repiten" },
