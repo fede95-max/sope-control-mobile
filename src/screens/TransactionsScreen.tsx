@@ -11,6 +11,7 @@ import {
 } from "../api/sope";
 import type { Account, Card, Category, Transaction, TransactionStatus } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { resolveAccountLabel, resolveCardLabel, typeLabel } from "../labels";
 import {
   currentCalendarDate,
@@ -20,6 +21,7 @@ import {
   formatInstallment,
   parseAmountToMinor,
 } from "../money";
+import { CategoryChip } from "../ui/CategoryChip";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
@@ -38,6 +40,7 @@ import {
 
 export function TransactionsScreen() {
   const auth = useAuth();
+  const { can } = usePermissions();
   const token = auth.token;
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [month, setMonth] = useState(currentYearMonth(timezone));
@@ -91,7 +94,7 @@ export function TransactionsScreen() {
     reload();
   }, [token, month]);
 
-  const categoryName = new Map(categories.map((category) => [category.id, category.name]));
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
   const accountName = new Map(accounts.map((account) => [account.id, account.name]));
   const cardName = new Map(cards.map((card) => [card.id, card.name]));
   const filteredTransactions = useMemo(() => {
@@ -107,7 +110,7 @@ export function TransactionsScreen() {
           formatCalendarDate(transaction.occurredOn),
           typeLabel(transaction.type),
           formatAmountFromMinor(transaction.amountMinor),
-          categoryName.get(transaction.categoryId ?? ""),
+          categoryById.get(transaction.categoryId ?? "")?.name,
           resolveAccountLabel(transaction, accountName),
           resolveCardLabel(transaction, cardName),
           transaction.description,
@@ -197,6 +200,12 @@ export function TransactionsScreen() {
       body.description = null;
     }
     if (type === "TRANSFER") {
+      if (fromAccountId === "" || toAccountId === "") {
+        throw new Error("Elegí cuenta de origen y destino.");
+      }
+      if (fromAccountId === toAccountId) {
+        throw new Error("Las cuentas de origen y destino tienen que ser distintas.");
+      }
       body.fromAccountId = fromAccountId;
       body.toAccountId = toAccountId;
     } else {
@@ -219,7 +228,7 @@ export function TransactionsScreen() {
   }));
 
   return (
-    <Screen title="Movimientos" actions={<GhostButton label="Nuevo" onPress={openCreate} />}>
+    <Screen title="Movimientos" actions={can("transactions:write") ? <GhostButton label="Nuevo" onPress={openCreate} /> : undefined}>
       <ScrollView
         contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
@@ -230,7 +239,7 @@ export function TransactionsScreen() {
           <Chip active={typeFilter === ""} label="Todos" onPress={() => setTypeFilter("")} />
           <Chip active={typeFilter === "EXPENSE"} label="Egreso" onPress={() => setTypeFilter("EXPENSE")} />
           <Chip active={typeFilter === "INCOME"} label="Ingreso" onPress={() => setTypeFilter("INCOME")} />
-          <Chip active={typeFilter === "TRANSFER"} label="Transfer" onPress={() => setTypeFilter("TRANSFER")} />
+          <Chip active={typeFilter === "TRANSFER"} label={typeLabel("TRANSFER")} onPress={() => setTypeFilter("TRANSFER")} />
           <Chip active={statusFilter === "PENDING"} label="Pendiente" onPress={() => setStatusFilter(statusFilter === "PENDING" ? "" : "PENDING")} />
         </FilterRow>
         <ErrorBanner error={error} />
@@ -239,11 +248,11 @@ export function TransactionsScreen() {
         ) : (
           filteredTransactions.map((transaction) => {
             const extras = [
-              categoryName.get(transaction.categoryId ?? "") ?? "",
               resolveAccountLabel(transaction, accountName),
               resolveCardLabel(transaction, cardName),
               formatInstallment(transaction.installmentNumber, transaction.installmentCount),
             ].filter((part) => part !== "");
+            const category = categoryById.get(transaction.categoryId ?? "");
             return (
               <ListCard key={transaction.id} onPress={() => startEdit(transaction)}>
                 <Row
@@ -257,6 +266,7 @@ export function TransactionsScreen() {
                   subtitle={`${formatCalendarDate(transaction.occurredOn)} · ${typeLabel(transaction.type)}`}
                   title={transaction.description ?? typeLabel(transaction.type)}
                 />
+                {category === undefined ? null : <CategoryChip name={category.name} color={category.color} />}
                 <StatusPill pending={transaction.status === "PENDING"} />
               </ListCard>
             );
@@ -269,7 +279,7 @@ export function TransactionsScreen() {
         error={error}
         onClose={resetForm}
         onDelete={
-          editingId === undefined || token === undefined
+          editingId === undefined || token === undefined || !can("transactions:delete")
             ? undefined
             : () => {
                 void confirmAction("Eliminar movimiento", "¿Eliminar este movimiento?", "Eliminar").then((ok) => {

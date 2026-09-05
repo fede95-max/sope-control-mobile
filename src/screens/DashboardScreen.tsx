@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
 import { getDashboard, listCategories, shareMonthExcel } from "../api/sope";
 import type { Category, Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { currentYearMonth, formatAmountFromMinor } from "../money";
 import { colors, space } from "../theme";
 import { GhostButton, MonthStepper, SearchBar } from "../ui/controls";
@@ -11,6 +12,7 @@ import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErr
 
 export function DashboardScreen() {
   const auth = useAuth();
+  const { can } = usePermissions();
   const token = auth.token;
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [month, setMonth] = useState(currentYearMonth(timezone));
@@ -53,18 +55,20 @@ export function DashboardScreen() {
     <Screen
       title="Resumen"
       actions={
-        <GhostButton
-          label={busy ? "..." : "Excel"}
-          onPress={() => {
-            if (token === undefined) {
-              return;
-            }
-            setBusy(true);
-            void shareMonthExcel(token, month)
-              .catch((cause: unknown) => setError(toErrorMessage(cause)))
-              .finally(() => setBusy(false));
-          }}
-        />
+        can("exports:read") ? (
+          <GhostButton
+            label={busy ? "..." : "Excel"}
+            onPress={() => {
+              if (token === undefined) {
+                return;
+              }
+              setBusy(true);
+              void shareMonthExcel(token, month)
+                .catch((cause: unknown) => setError(toErrorMessage(cause)))
+                .finally(() => setBusy(false));
+            }}
+          />
+        ) : undefined
       }
     >
       <ScrollView

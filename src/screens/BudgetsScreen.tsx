@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native
 import { createBudget, deleteBudget, listBudgets, listCategories, updateBudget } from "../api/sope";
 import type { Budget, Category } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { currentYearMonth, formatAmountFromMinor, parseAmountToMinor } from "../money";
 import { colors } from "../theme";
 import { GhostButton, MonthStepper, SearchBar } from "../ui/controls";
@@ -22,6 +23,7 @@ import {
 
 export function BudgetsScreen() {
   const auth = useAuth();
+  const { can } = usePermissions();
   const token = auth.token;
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [month, setMonth] = useState(currentYearMonth(timezone));
@@ -84,14 +86,16 @@ export function BudgetsScreen() {
     <Screen
       title="Presupuestos"
       actions={
-        <GhostButton
-          label="Nuevo"
-          onPress={() => {
-            resetForm();
-            setError(undefined);
-            setFormOpen(true);
-          }}
-        />
+        can("budgets:write") ? (
+          <GhostButton
+            label="Nuevo"
+            onPress={() => {
+              resetForm();
+              setError(undefined);
+              setFormOpen(true);
+            }}
+          />
+        ) : undefined
       }
     >
       <ScrollView
@@ -141,7 +145,7 @@ export function BudgetsScreen() {
         error={error}
         onClose={resetForm}
         onDelete={
-          editingId === undefined || token === undefined
+          editingId === undefined || token === undefined || !can("budgets:delete")
             ? undefined
             : () => {
                 void confirmAction("Eliminar presupuesto", "¿Eliminar este presupuesto?", "Eliminar").then((ok) => {

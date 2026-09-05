@@ -5,9 +5,10 @@ import { RefreshControl, ScrollView } from "react-native";
 import { listAccounts, listCards, listMassImports } from "../api/sope";
 import type { Account, Card, MassImport } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import type { MoreStackParamList } from "../navigation/types";
 import { formatCalendarDate } from "../money";
-import { GhostButton, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
 import { Card as ListCard, Row } from "../ui/list";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
 
@@ -33,6 +34,7 @@ function targetLabel(item: MassImport, accounts: Account[], cards: Card[]): stri
 
 export function MassImportsScreen() {
   const token = useAuth().token;
+  const { can } = usePermissions();
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
   const [items, setItems] = useState<MassImport[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -40,6 +42,7 @@ export function MassImportsScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [query, setQuery] = useState("");
+  const [showCancelled, setShowCancelled] = useState(false);
 
   function reload() {
     if (token === undefined) {
@@ -62,21 +65,31 @@ export function MassImportsScreen() {
   }, [token]);
 
   const filtered = useMemo(() => {
-    return items.filter((item) =>
-      matchesText(
+    return items.filter((item) => {
+      if (!showCancelled && item.status === "CANCELLED") {
+        return false;
+      }
+      return matchesText(
         [statusLabel(item.status), targetLabel(item, accounts, cards), formatCalendarDate(item.createdAt.slice(0, 10))],
         query,
-      ),
-    );
-  }, [items, accounts, cards, query]);
+      );
+    });
+  }, [items, accounts, cards, query, showCancelled]);
 
   return (
-    <Screen title="Movimientos masivos" actions={<GhostButton label="Nuevo" onPress={() => navigation.navigate("MassImportNew")} />}>
+    <Screen title="Movimientos masivos" actions={can("mass-imports:write") ? <GhostButton label="Nuevo" onPress={() => navigation.navigate("MassImportNew")} /> : undefined}>
       <ScrollView
         contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <SearchBar onChange={setQuery} value={query} />
+        <FilterRow>
+          <Chip
+            active={showCancelled}
+            label="Mostrar cancelados"
+            onPress={() => setShowCancelled((current) => !current)}
+          />
+        </FilterRow>
         <ErrorBanner error={error} />
         {filtered.length === 0 ? (
           <EmptyState text="No hay movimientos masivos." />

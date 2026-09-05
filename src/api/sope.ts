@@ -24,9 +24,11 @@ import type {
   MassImportFile,
   MassImportUpload,
   MeResponse,
+  PermissionDefinition,
   Recurring,
   Transaction,
   TransactionStatus,
+  UserGroup,
 } from "./types";
 
 function requireRecord(value: unknown, label: string): Record<string, unknown> {
@@ -54,8 +56,20 @@ function parseCategory(value: unknown): Category {
     id: readString(item, "id"),
     name: readString(item, "name"),
     kind: readString(item, "kind"),
+    color: typeof item.color === "string" && item.color !== "" ? item.color : "#94a3b8",
     seedCode: readNullableString(item, "seedCode"),
     isActive: readBoolean(item, "isActive"),
+  };
+}
+
+function parseUserGroup(value: unknown): UserGroup {
+  const item = requireRecord(value, "group");
+  return {
+    id: readString(item, "id"),
+    name: readString(item, "name"),
+    seedCode: readNullableString(item, "seedCode"),
+    permissions: readArray(item, "permissions").flatMap((entry) => (typeof entry === "string" ? [entry] : [])),
+    isSystem: readBoolean(item, "isSystem"),
   };
 }
 
@@ -225,15 +239,28 @@ export async function getMe(token: string): Promise<MeResponse> {
             if (!isRecord(member)) {
               return [];
             }
-            return [{ userId: readString(member, "userId"), email: readString(member, "email") }];
+            return [
+              {
+                userId: readString(member, "userId"),
+                email: readString(member, "email"),
+                groupId: readNullableString(member, "groupId"),
+              },
+            ];
           }),
           pendingInvites: readArray(household, "pendingInvites").flatMap((invite) => {
             if (!isRecord(invite)) {
               return [];
             }
-            return [{ email: readString(invite, "email") }];
+            return [
+              {
+                email: readString(invite, "email"),
+                groupId: readNullableString(invite, "groupId"),
+              },
+            ];
           }),
         },
+        group: isRecord(root.group) ? parseUserGroup(root.group) : undefined,
+        permissions: readArray(root, "permissions").flatMap((item) => (typeof item === "string" ? [item] : [])),
       };
     },
   });
@@ -293,7 +320,7 @@ export async function listCategories(token: string): Promise<Category[]> {
 
 export async function createCategory(
   token: string,
-  body: { name: string; kind: string },
+  body: { name: string; kind: string; color: string },
 ): Promise<Category> {
   return apiRequest({
     path: "/categories",
@@ -618,12 +645,87 @@ export async function deleteBudget(token: string, id: string): Promise<void> {
   });
 }
 
-export async function inviteMember(token: string, email: string): Promise<void> {
+export async function inviteMember(token: string, email: string, groupId?: string): Promise<void> {
   await apiRequest({
     path: "/household/invites",
     method: "POST",
     token,
-    body: { email },
+    body: groupId === undefined ? { email } : { email, groupId },
+    parseJson: () => undefined,
+  });
+}
+
+export async function assignMemberGroup(token: string, userId: string, groupId: string): Promise<void> {
+  await apiRequest({
+    path: `/household/members/${userId}/group`,
+    method: "PATCH",
+    token,
+    body: { groupId },
+    parseJson: () => undefined,
+  });
+}
+
+export async function listPermissions(token: string): Promise<PermissionDefinition[]> {
+  return apiRequest({
+    path: "/permissions",
+    token,
+    parseJson: (payload) =>
+      readArray(requireRecord(payload, "permissions"), "permissions").flatMap((item) => {
+        if (!isRecord(item)) {
+          return [];
+        }
+        return [
+          {
+            permission: readString(item, "permission"),
+            resource: readString(item, "resource"),
+            action: readString(item, "action"),
+            label: readString(item, "label"),
+          },
+        ];
+      }),
+  });
+}
+
+export async function listGroups(token: string): Promise<UserGroup[]> {
+  return apiRequest({
+    path: "/groups",
+    token,
+    parseJson: (payload) => readArray(requireRecord(payload, "groups"), "groups").map(parseUserGroup),
+  });
+}
+
+export async function createGroup(
+  token: string,
+  body: { name: string; permissions: string[] },
+): Promise<UserGroup> {
+  return apiRequest({
+    path: "/groups",
+    method: "POST",
+    token,
+    body,
+    parseJson: (payload) => parseUserGroup(requireRecord(payload, "group").group),
+  });
+}
+
+export async function updateGroup(
+  token: string,
+  id: string,
+  body: { name?: string; permissions?: string[] },
+): Promise<UserGroup> {
+  return apiRequest({
+    path: `/groups/${id}`,
+    method: "PATCH",
+    token,
+    body,
+    parseJson: (payload) => parseUserGroup(requireRecord(payload, "group").group),
+  });
+}
+
+export async function deleteGroup(token: string, id: string): Promise<void> {
+  await apiRequest({
+    path: `/groups/${id}`,
+    method: "DELETE",
+    token,
     parseJson: () => undefined,
   });
 }

@@ -3,11 +3,13 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { AccountsScreen } from "../screens/AccountsScreen";
 import { BudgetsScreen } from "../screens/BudgetsScreen";
 import { CardsScreen } from "../screens/CardsScreen";
 import { CategoriesScreen } from "../screens/CategoriesScreen";
 import { DashboardScreen } from "../screens/DashboardScreen";
+import { GroupsScreen } from "../screens/GroupsScreen";
 import { HouseholdScreen } from "../screens/HouseholdScreen";
 import { LoginScreen } from "../screens/LoginScreen";
 import { MassImportNewScreen } from "../screens/MassImportNewScreen";
@@ -30,6 +32,7 @@ function MoreNavigator() {
       <MoreStack.Screen component={BudgetsScreen} name="Budgets" />
       <MoreStack.Screen component={RecurringScreen} name="Recurring" />
       <MoreStack.Screen component={HouseholdScreen} name="Household" />
+      <MoreStack.Screen component={GroupsScreen} name="Groups" />
       <MoreStack.Screen component={MassImportsScreen} name="MassImports" />
       <MoreStack.Screen component={MassImportNewScreen} name="MassImportNew" />
       <MoreStack.Screen component={MassImportReviewScreen} name="MassImportReview" />
@@ -39,6 +42,7 @@ function MoreNavigator() {
 
 function MainTabs() {
   const insets = useSafeAreaInsets();
+  const { can } = usePermissions();
   const tabBarBottomInset = Platform.OS === "android" ? Math.max(insets.bottom, space.sm) : 0;
 
   return (
@@ -59,26 +63,34 @@ function MainTabs() {
         },
       }}
     >
+      {can("dashboard:read") ? (
       <Tab.Screen
         component={DashboardScreen}
         name="Dashboard"
         options={{ tabBarLabel: "Resumen", tabBarIcon: ({ color }) => <TabMark color={color} label="R" /> }}
       />
+      ) : null}
+      {can("transactions:read") ? (
       <Tab.Screen
         component={TransactionsScreen}
         name="Transactions"
         options={{ tabBarLabel: "Movs", tabBarIcon: ({ color }) => <TabMark color={color} label="M" /> }}
       />
+      ) : null}
+      {can("accounts:read") ? (
       <Tab.Screen
         component={AccountsScreen}
         name="Accounts"
         options={{ tabBarLabel: "Cuentas", tabBarIcon: ({ color }) => <TabMark color={color} label="C" /> }}
       />
+      ) : null}
+      {can("cards:read") ? (
       <Tab.Screen
         component={CardsScreen}
         name="Cards"
         options={{ tabBarLabel: "Tarjetas", tabBarIcon: ({ color }) => <TabMark color={color} label="T" /> }}
       />
+      ) : null}
       <Tab.Screen
         component={MoreNavigator}
         name="More"

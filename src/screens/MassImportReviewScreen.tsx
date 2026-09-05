@@ -14,6 +14,7 @@ import {
 } from "../api/sope";
 import type { Account, Card, Category, MassImport, MassImportDraftItem, TransactionStatus } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import type { MoreStackParamList } from "../navigation/types";
 import {
   currentCalendarDate,
@@ -57,6 +58,7 @@ function emptyManualItem(timezone: string, currency: string): MassImportDraftIte
 
 export function MassImportReviewScreen() {
   const auth = useAuth();
+  const { can } = usePermissions();
   const token = auth.token;
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
@@ -127,7 +129,7 @@ export function MassImportReviewScreen() {
     };
   }, [token, id, activeFileId]);
 
-  const readonly = massImport !== undefined && massImport.status !== "DRAFT";
+  const readonly = massImport !== undefined && (massImport.status !== "DRAFT" || !can("mass-imports:write"));
   const targetCurrency =
     massImport?.cardId !== undefined
       ? cards.find((card) => card.id === massImport.cardId)?.currency ?? "ARS"
@@ -287,6 +289,7 @@ export function MassImportReviewScreen() {
                   .finally(() => setBusy(false));
               }}
             />
+            {can("mass-imports:confirm") ? (
             <PrimaryButton
               disabled={busy || selectedCount === 0 || confirmBlocked}
               label={`Confirmar (${selectedCount})`}
@@ -302,6 +305,7 @@ export function MassImportReviewScreen() {
                   .finally(() => setBusy(false));
               }}
             />
+            ) : null}
             <GhostButton
               label="Cancelar lote"
               onPress={() => {

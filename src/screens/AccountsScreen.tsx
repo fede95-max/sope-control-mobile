@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView } from "react-native";
 import { createAccount, deleteAccount, listAccounts, updateAccount } from "../api/sope";
 import type { Account } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { accountTypeLabel } from "../labels";
 import { formatAmountFromMinor } from "../money";
 import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
@@ -22,6 +23,7 @@ import {
 
 export function AccountsScreen() {
   const token = useAuth().token;
+  const { can } = usePermissions();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [name, setName] = useState("");
@@ -85,7 +87,7 @@ export function AccountsScreen() {
   }
 
   return (
-    <Screen title="Cuentas" actions={<GhostButton label="Nueva" onPress={openCreate} />}>
+    <Screen title="Cuentas" actions={can("accounts:write") ? <GhostButton label="Nueva" onPress={openCreate} /> : undefined}>
       <ScrollView
         contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
@@ -118,7 +120,7 @@ export function AccountsScreen() {
         error={error}
         onClose={resetForm}
         onDelete={
-          editingId === undefined || token === undefined
+          editingId === undefined || token === undefined || !can("accounts:delete")
             ? undefined
             : () => {
                 void confirmAction("Eliminar cuenta", "¿Eliminar esta cuenta?", "Eliminar").then((ok) => {

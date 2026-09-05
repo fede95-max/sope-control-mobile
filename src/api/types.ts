@@ -14,10 +14,27 @@ export type UserProfile = {
 export type HouseholdMember = {
   userId: string;
   email: string;
+  groupId: string | undefined;
 };
 
 export type HouseholdInvite = {
   email: string;
+  groupId: string | undefined;
+};
+
+export type UserGroup = {
+  id: string;
+  name: string;
+  seedCode: string | undefined;
+  permissions: string[];
+  isSystem: boolean;
+};
+
+export type PermissionDefinition = {
+  permission: string;
+  resource: string;
+  action: string;
+  label: string;
 };
 
 export type MeResponse = {
@@ -27,6 +44,8 @@ export type MeResponse = {
     members: HouseholdMember[];
     pendingInvites: HouseholdInvite[];
   };
+  group: UserGroup | undefined;
+  permissions: string[];
 };
 
 export type Account = {
@@ -42,6 +61,7 @@ export type Category = {
   id: string;
   name: string;
   kind: string;
+  color: string;
   seedCode: string | undefined;
   isActive: boolean;
 };

@@ -10,6 +10,7 @@ import {
 } from "../api/sope";
 import type { CardOverview } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { usePermissions } from "../auth/usePermissions";
 import { cardKindLabel } from "../labels";
 import { currentYearMonth, formatAmountFromMinor, formatCalendarDate } from "../money";
 import { colors } from "../theme";
@@ -38,6 +39,7 @@ function currencyAmount(
 
 export function CardsScreen() {
   const auth = useAuth();
+  const { can } = usePermissions();
   const token = auth.token;
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [viewMonth, setViewMonth] = useState(currentYearMonth(timezone));
@@ -151,7 +153,7 @@ export function CardsScreen() {
   const periodCard = cards.find((card) => card.id === periodCardId);
 
   return (
-    <Screen title="Tarjetas" actions={<GhostButton label="Nueva" onPress={openCreate} />}>
+    <Screen title="Tarjetas" actions={can("cards:write") ? <GhostButton label="Nueva" onPress={openCreate} /> : undefined}>
       <ScrollView
         contentContainerStyle={screenContentStyle}
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
@@ -202,7 +204,7 @@ export function CardsScreen() {
         error={error}
         onClose={closeForm}
         onDelete={
-          editingId === undefined || token === undefined
+          editingId === undefined || token === undefined || !can("cards:delete")
             ? undefined
             : () => {
                 void confirmAction("Eliminar tarjeta", "¿Eliminar esta tarjeta?", "Eliminar").then((ok) => {
