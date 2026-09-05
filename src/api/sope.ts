@@ -29,6 +29,9 @@ import type {
   Transaction,
   TransactionStatus,
   UserGroup,
+  DirectoryUser,
+  HouseholdMemberRole,
+  HouseholdMembership,
 } from "./types";
 
 function requireRecord(value: unknown, label: string): Record<string, unknown> {
@@ -70,6 +73,81 @@ function parseUserGroup(value: unknown): UserGroup {
     seedCode: readNullableString(item, "seedCode"),
     permissions: readArray(item, "permissions").flatMap((entry) => (typeof entry === "string" ? [entry] : [])),
     isSystem: readBoolean(item, "isSystem"),
+  };
+}
+
+function parseMemberRole(value: unknown): HouseholdMemberRole | undefined {
+  if (value === "OWNER" || value === "INVITED") {
+    return value;
+  }
+  return undefined;
+}
+
+function parseHouseholdMembership(value: unknown): HouseholdMembership | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const role = value.role === "OWNER" || value.role === "INVITED" || value.role === "ROOT" ? value.role : "INVITED";
+  return {
+    id: readString(value, "id"),
+    role,
+    label: typeof value.label === "string" ? value.label : "Hogar",
+    ownerEmail: readNullableString(value, "ownerEmail"),
+    isActive: typeof value.isActive === "boolean" ? value.isActive : false,
+  };
+}
+
+function parseMe(payload: unknown): MeResponse {
+  const root = requireRecord(payload, "/me");
+  const user = requireRecord(root.user, "user");
+  const household = requireRecord(root.household, "household");
+  return {
+    user: {
+      id: readString(user, "id"),
+      email: readString(user, "email"),
+      householdId: readString(user, "householdId"),
+      ownedHouseholdId: readNullableString(user, "ownedHouseholdId"),
+      timezone: readString(user, "timezone"),
+      defaultCurrency: readString(user, "defaultCurrency"),
+      isRoot: typeof user.isRoot === "boolean" ? user.isRoot : false,
+    },
+    household: {
+      id: readString(household, "id"),
+      ownerUserId: readNullableString(household, "ownerUserId"),
+      canRemoveMembers: typeof household.canRemoveMembers === "boolean" ? household.canRemoveMembers : false,
+      members: readArray(household, "members").flatMap((member) => {
+        if (!isRecord(member)) {
+          return [];
+        }
+        return [
+          {
+            userId: readString(member, "userId"),
+            email: readString(member, "email"),
+            groupId: readNullableString(member, "groupId"),
+            role: parseMemberRole(member.role),
+          },
+        ];
+      }),
+      pendingInvites: readArray(household, "pendingInvites").flatMap((invite) => {
+        if (!isRecord(invite)) {
+          return [];
+        }
+        return [
+          {
+            email: readString(invite, "email"),
+            groupId: readNullableString(invite, "groupId"),
+          },
+        ];
+      }),
+    },
+    households: Array.isArray(root.households)
+      ? root.households.flatMap((item) => {
+          const membership = parseHouseholdMembership(item);
+          return membership === undefined ? [] : [membership];
+        })
+      : [],
+    group: isRecord(root.group) ? parseUserGroup(root.group) : undefined,
+    permissions: readArray(root, "permissions").flatMap((item) => (typeof item === "string" ? [item] : [])),
   };
 }
 
@@ -221,48 +299,17 @@ export async function getMe(token: string): Promise<MeResponse> {
   return apiRequest({
     path: "/me",
     token,
-    parseJson: (payload) => {
-      const root = requireRecord(payload, "/me");
-      const user = requireRecord(root.user, "user");
-      const household = requireRecord(root.household, "household");
-      return {
-        user: {
-          id: readString(user, "id"),
-          email: readString(user, "email"),
-          householdId: readString(user, "householdId"),
-          timezone: readString(user, "timezone"),
-          defaultCurrency: readString(user, "defaultCurrency"),
-        },
-        household: {
-          id: readString(household, "id"),
-          members: readArray(household, "members").flatMap((member) => {
-            if (!isRecord(member)) {
-              return [];
-            }
-            return [
-              {
-                userId: readString(member, "userId"),
-                email: readString(member, "email"),
-                groupId: readNullableString(member, "groupId"),
-              },
-            ];
-          }),
-          pendingInvites: readArray(household, "pendingInvites").flatMap((invite) => {
-            if (!isRecord(invite)) {
-              return [];
-            }
-            return [
-              {
-                email: readString(invite, "email"),
-                groupId: readNullableString(invite, "groupId"),
-              },
-            ];
-          }),
-        },
-        group: isRecord(root.group) ? parseUserGroup(root.group) : undefined,
-        permissions: readArray(root, "permissions").flatMap((item) => (typeof item === "string" ? [item] : [])),
-      };
-    },
+    parseJson: parseMe,
+  });
+}
+
+export async function switchActiveHousehold(token: string, householdId: string): Promise<void> {
+  await apiRequest({
+    path: "/me/household",
+    method: "PUT",
+    token,
+    body: { householdId },
+    parseJson: () => undefined,
   });
 }
 
@@ -655,6 +702,15 @@ export async function inviteMember(token: string, email: string, groupId?: strin
   });
 }
 
+export async function removeMember(token: string, userId: string): Promise<void> {
+  await apiRequest({
+    path: `/household/members/${userId}`,
+    method: "DELETE",
+    token,
+    parseJson: () => undefined,
+  });
+}
+
 export async function assignMemberGroup(token: string, userId: string, groupId: string): Promise<void> {
   await apiRequest({
     path: `/household/members/${userId}/group`,
@@ -662,6 +718,45 @@ export async function assignMemberGroup(token: string, userId: string, groupId: 
     token,
     body: { groupId },
     parseJson: () => undefined,
+  });
+}
+
+export async function listUsers(token: string): Promise<DirectoryUser[]> {
+  return apiRequest({
+    path: "/users",
+    token,
+    parseJson: (payload) =>
+      readArray(requireRecord(payload, "users"), "users").flatMap((item) => {
+        if (!isRecord(item)) {
+          return [];
+        }
+        return [
+          {
+            id: readString(item, "id"),
+            email: readString(item, "email"),
+            isRoot: typeof item.isRoot === "boolean" ? item.isRoot : false,
+            activeHouseholdId: readString(item, "activeHouseholdId"),
+            ownedHouseholdId: readNullableString(item, "ownedHouseholdId"),
+            memberships: readArray(item, "memberships").flatMap((membership) => {
+              if (!isRecord(membership)) {
+                return [];
+              }
+              const role = membership.role === "OWNER" ? "OWNER" : "INVITED";
+              return [
+                {
+                  householdId: readString(membership, "householdId"),
+                  role,
+                  groupId: readNullableString(membership, "groupId"),
+                  groupName: readNullableString(membership, "groupName"),
+                  ownerEmail: readNullableString(membership, "ownerEmail"),
+                  label: typeof membership.label === "string" ? membership.label : "Hogar",
+                  isActive: typeof membership.isActive === "boolean" ? membership.isActive : false,
+                },
+              ];
+            }),
+          },
+        ];
+      }),
   });
 }
 

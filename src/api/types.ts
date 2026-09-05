@@ -7,19 +7,32 @@ export type UserProfile = {
   id: string;
   email: string;
   householdId: string;
+  ownedHouseholdId: string | undefined;
   timezone: string;
   defaultCurrency: string;
+  isRoot: boolean;
 };
+
+export type HouseholdMemberRole = "OWNER" | "INVITED";
 
 export type HouseholdMember = {
   userId: string;
   email: string;
   groupId: string | undefined;
+  role: HouseholdMemberRole | undefined;
 };
 
 export type HouseholdInvite = {
   email: string;
   groupId: string | undefined;
+};
+
+export type HouseholdMembership = {
+  id: string;
+  role: "OWNER" | "INVITED" | "ROOT";
+  label: string;
+  ownerEmail: string | undefined;
+  isActive: boolean;
 };
 
 export type UserGroup = {
@@ -37,13 +50,35 @@ export type PermissionDefinition = {
   label: string;
 };
 
+export type DirectoryMembership = {
+  householdId: string;
+  role: HouseholdMemberRole;
+  groupId: string | undefined;
+  groupName: string | undefined;
+  ownerEmail: string | undefined;
+  label: string;
+  isActive: boolean;
+};
+
+export type DirectoryUser = {
+  id: string;
+  email: string;
+  isRoot: boolean;
+  activeHouseholdId: string;
+  ownedHouseholdId: string | undefined;
+  memberships: DirectoryMembership[];
+};
+
 export type MeResponse = {
   user: UserProfile;
   household: {
     id: string;
+    ownerUserId: string | undefined;
+    canRemoveMembers: boolean;
     members: HouseholdMember[];
     pendingInvites: HouseholdInvite[];
   };
+  households: HouseholdMembership[];
   group: UserGroup | undefined;
   permissions: string[];
 };

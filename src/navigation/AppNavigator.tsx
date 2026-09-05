@@ -18,6 +18,7 @@ import { MassImportsScreen } from "../screens/MassImportsScreen";
 import { MoreScreen } from "../screens/MoreScreen";
 import { RecurringScreen } from "../screens/RecurringScreen";
 import { TransactionsScreen } from "../screens/TransactionsScreen";
+import { UsersScreen } from "../screens/UsersScreen";
 import { colors, space } from "../theme";
 import type { MainTabParamList, MoreStackParamList } from "./types";
 
@@ -33,6 +34,7 @@ function MoreNavigator() {
       <MoreStack.Screen component={RecurringScreen} name="Recurring" />
       <MoreStack.Screen component={HouseholdScreen} name="Household" />
       <MoreStack.Screen component={GroupsScreen} name="Groups" />
+      <MoreStack.Screen component={UsersScreen} name="Users" />
       <MoreStack.Screen component={MassImportsScreen} name="MassImports" />
       <MoreStack.Screen component={MassImportNewScreen} name="MassImportNew" />
       <MoreStack.Screen component={MassImportReviewScreen} name="MassImportReview" />
@@ -119,7 +121,7 @@ export function AppNavigator() {
     return <LoginScreen />;
   }
 
-  return <MainTabs />;
+  return <MainTabs key={auth.me?.user.householdId} />;
 }
 
 const styles = StyleSheet.create({
