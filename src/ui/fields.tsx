@@ -1,9 +1,11 @@
 import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { formatCalendarDate, parseCalendarDate, toCalendarDate } from "../money";
 import { colors, space } from "../theme";
+
+const SELECT_OPTION_HEIGHT = 48;
 
 export function TextField({
   label,
@@ -57,8 +59,12 @@ export function SelectField({
 }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const bottomInset = Math.max(insets.bottom, space.sm);
   const selected = options.find((option) => option.value === value);
+  const sheetMaxHeight = height * 0.7;
+  const contentHeight = options.length * SELECT_OPTION_HEIGHT;
+  const listHeight = Math.min(sheetMaxHeight, contentHeight);
 
   return (
     <View style={styles.field}>
@@ -70,9 +76,14 @@ export function SelectField({
       </Pressable>
       <Modal animationType="fade" onRequestClose={() => setOpen(false)} transparent visible={open}>
         <Pressable onPress={() => setOpen(false)} style={styles.overlay}>
-          <Pressable onPress={() => {}}>
+          <Pressable onPress={() => {}} style={styles.sheetWrap}>
             <View style={[styles.sheet, { paddingBottom: bottomInset }]}>
-              <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
+              <ScrollView
+                bounces={false}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={contentHeight > sheetMaxHeight}
+                style={{ maxHeight: listHeight }}
+              >
                 {options.map((option) => (
                   <Pressable
                     key={option.value === "" ? `empty-${option.label}` : option.value}
@@ -184,16 +195,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.overlay,
     justifyContent: "flex-end",
   },
+  sheetWrap: {
+    width: "100%",
+  },
   sheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     paddingVertical: space.sm,
-    maxHeight: "70%",
+    width: "100%",
   },
   option: {
     paddingHorizontal: space.lg,
-    paddingVertical: 14,
+    height: SELECT_OPTION_HEIGHT,
+    justifyContent: "center",
   },
   optionText: {
     fontSize: 16,

@@ -19,7 +19,7 @@ export function Row({
   meta,
   right,
 }: {
-  title: string;
+  title: ReactNode;
   subtitle?: string;
   meta?: string;
   right?: ReactNode;
@@ -27,7 +27,7 @@ export function Row({
   return (
     <View style={styles.row}>
       <View style={styles.rowBody}>
-        <Text style={styles.rowTitle}>{title}</Text>
+        {typeof title === "string" ? <Text style={styles.rowTitle}>{title}</Text> : title}
         {subtitle !== undefined && subtitle !== "" ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
         {meta !== undefined && meta !== "" ? <Text style={styles.rowMeta}>{meta}</Text> : null}
       </View>

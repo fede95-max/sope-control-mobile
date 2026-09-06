@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { currentYearMonth, formatAmountFromMinor } from "../money";
 import { colors, space } from "../theme";
+import { CategoryChip } from "../ui/CategoryChip";
 import { GhostButton, MonthStepper, SearchBar } from "../ui/controls";
 import { Card, Row, Amount } from "../ui/list";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
@@ -41,11 +42,11 @@ export function DashboardScreen() {
     reload();
   }, [token, month]);
 
-  const categoryName = new Map(categories.map((category) => [category.id, category.name]));
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
   const filteredRows = useMemo(() => {
     return (dashboard?.expensesByCategory ?? []).filter((row) =>
       matchesText(
-        [categoryName.get(row.categoryId) ?? row.categoryId, row.currency, formatAmountFromMinor(row.amountMinor)],
+        [categoryById.get(row.categoryId)?.name ?? row.categoryId, row.currency, formatAmountFromMinor(row.amountMinor)],
         query,
       ),
     );
@@ -97,14 +98,22 @@ export function DashboardScreen() {
         {filteredRows.length === 0 ? (
           <EmptyState text="Nada para mostrar." />
         ) : (
-          filteredRows.map((row) => (
-            <Card key={`${row.categoryId}-${row.currency}`}>
-              <Row
-                right={<Amount currency={row.currency} value={formatAmountFromMinor(row.amountMinor)} />}
-                title={categoryName.get(row.categoryId) ?? row.categoryId}
-              />
-            </Card>
-          ))
+          filteredRows.map((row) => {
+            const category = categoryById.get(row.categoryId);
+            return (
+              <Card key={`${row.categoryId}-${row.currency}`}>
+                <Row
+                  right={<Amount currency={row.currency} value={formatAmountFromMinor(row.amountMinor)} />}
+                  title={
+                    <CategoryChip
+                      name={category?.name ?? row.categoryId}
+                      color={category?.color}
+                    />
+                  }
+                />
+              </Card>
+            );
+          })
         )}
       </ScrollView>
     </Screen>

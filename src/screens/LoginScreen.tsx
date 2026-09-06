@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -45,56 +46,62 @@ export function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
-      <View style={styles.card}>
-        <Text style={styles.title}>sope-control</Text>
-        <Text style={styles.subtitle}>Finanzas del hogar</Text>
-        <TextInput
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          placeholder="Email"
-          placeholderTextColor={colors.muted}
-          style={styles.input}
-          value={email}
-        />
-        <TextInput
-          autoCapitalize="none"
-          autoComplete="password"
-          onChangeText={setPassword}
-          placeholder="Contraseña"
-          placeholderTextColor={colors.muted}
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
-        {error !== undefined ? <Text style={styles.error}>{error}</Text> : null}
-        <Pressable
-          disabled={busy || email.trim() === "" || password === ""}
-          onPress={() => {
-            void submit();
-          }}
-          style={[styles.button, busy ? styles.buttonDisabled : undefined]}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
-          {busy ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</Text>
-          )}
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            setMode(mode === "login" ? "signup" : "login");
-            setError(undefined);
-          }}
-        >
-          <Text style={styles.switch}>
-            {mode === "login" ? "¿No tenés cuenta? Crear una" : "¿Ya tenés cuenta? Iniciar sesión"}
-          </Text>
-        </Pressable>
-        <Text style={styles.hint}>API: {apiBaseUrl}</Text>
-      </View>
+          <View style={styles.card}>
+            <Text style={styles.title}>sope-control</Text>
+            <Text style={styles.subtitle}>Finanzas del hogar</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={email}
+            />
+            <TextInput
+              autoCapitalize="none"
+              autoComplete="password"
+              onChangeText={setPassword}
+              placeholder="Contraseña"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              style={styles.input}
+              value={password}
+            />
+            {error !== undefined ? <Text style={styles.error}>{error}</Text> : null}
+            <Pressable
+              disabled={busy || email.trim() === "" || password === ""}
+              onPress={() => {
+                void submit();
+              }}
+              style={[styles.button, busy ? styles.buttonDisabled : undefined]}
+            >
+              {busy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</Text>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                setMode(mode === "login" ? "signup" : "login");
+                setError(undefined);
+              }}
+            >
+              <Text style={styles.switch}>
+                {mode === "login" ? "¿No tenés cuenta? Crear una" : "¿Ya tenés cuenta? Iniciar sesión"}
+              </Text>
+            </Pressable>
+            <Text style={styles.hint}>API: {apiBaseUrl}</Text>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -107,6 +114,9 @@ const styles = StyleSheet.create({
   },
   flex: {
     flex: 1,
+  },
+  scroll: {
+    flexGrow: 1,
     justifyContent: "center",
     padding: 24,
   },

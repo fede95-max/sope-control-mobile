@@ -170,8 +170,17 @@ export function FormSheet({
             {busy ? <ActivityIndicator color={colors.teal} /> : <Text style={styles.sheetLinkStrong}>{submitLabel}</Text>}
           </Pressable>
         </View>
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.flex}>
-          <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 56 : 0}
+          style={styles.flex}
+        >
+          <ScrollView
+            automaticallyAdjustKeyboardInsets
+            contentContainerStyle={styles.sheetBody}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+          >
             <ErrorBanner error={error} />
             {children}
             {onDelete !== undefined ? (
