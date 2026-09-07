@@ -7,6 +7,7 @@ import { ScrollView } from "react-native";
 import {
   analyzeMassImport,
   createMassImport,
+  getLocalFileSize,
   listAccounts,
   listCards,
   uploadMassImportFile,
@@ -53,24 +54,23 @@ export function MassImportNewScreen() {
   }, [token]);
 
   async function addFiles(next: PickedFile[]) {
-    const resolved: PickedFile[] = [];
-    for (const file of next) {
-      let size = file.size;
-      if (size < 1) {
-        const response = await fetch(file.uri);
-        const blob = await response.blob();
-        size = blob.size;
+    try {
+      const resolved: PickedFile[] = [];
+      for (const file of next) {
+        const size = await getLocalFileSize(file.uri);
+        resolved.push({ ...file, size });
       }
-      resolved.push({ ...file, size });
+      const merged = [...files, ...resolved].slice(0, MAX_FILES);
+      const invalid = merged.find((file) => !ALLOWED.has(file.contentType) || file.size > MAX_BYTES || file.size < 1);
+      if (invalid !== undefined) {
+        setError("Solo JPEG, PNG, WebP o PDF de hasta 10 MB. Máximo 3 archivos.");
+        return;
+      }
+      setFiles(merged);
+      setError(undefined);
+    } catch (cause: unknown) {
+      setError(toErrorMessage(cause));
     }
-    const merged = [...files, ...resolved].slice(0, MAX_FILES);
-    const invalid = merged.find((file) => !ALLOWED.has(file.contentType) || file.size > MAX_BYTES || file.size < 1);
-    if (invalid !== undefined) {
-      setError("Solo JPEG, PNG, WebP o PDF de hasta 10 MB. Máximo 3 archivos.");
-      return;
-    }
-    setFiles(merged);
-    setError(undefined);
   }
 
   async function pickGallery() {

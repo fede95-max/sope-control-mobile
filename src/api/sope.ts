@@ -1,4 +1,11 @@
-import { cacheDirectory, EncodingType, writeAsStringAsync } from "expo-file-system/legacy";
+import {
+  cacheDirectory,
+  EncodingType,
+  FileSystemUploadType,
+  getInfoAsync,
+  uploadAsync,
+  writeAsStringAsync,
+} from "expo-file-system/legacy";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
 import {
   isRecord,
@@ -1031,19 +1038,25 @@ export async function getMassImportFileDownload(
   });
 }
 
+export async function getLocalFileSize(uri: string): Promise<number> {
+  const info = await getInfoAsync(uri);
+  if (!info.exists || info.isDirectory) {
+    throw new Error("No se encontró el archivo");
+  }
+  return info.size;
+}
+
 export async function uploadMassImportFile(
   uploadUrl: string,
   uri: string,
   contentType: string,
 ): Promise<void> {
-  const fileResponse = await fetch(uri);
-  const blob = await fileResponse.blob();
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
+  const result = await uploadAsync(uploadUrl, uri, {
+    httpMethod: "PUT",
     headers: { "Content-Type": contentType },
-    body: blob,
+    uploadType: FileSystemUploadType.BINARY_CONTENT,
   });
-  if (!response.ok) {
+  if (result.status < 200 || result.status >= 300) {
     throw new Error("No se pudo subir el archivo");
   }
 }
