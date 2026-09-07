@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   createCard,
   deleteCard,
@@ -13,7 +13,9 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { cardKindLabel } from "../labels";
 import { currentYearMonth, formatAmountFromMinor, formatCalendarDate } from "../money";
-import { colors } from "../theme";
+import { colors, space } from "../theme";
+import { AuditFooter } from "../ui/AuditFooter";
+import { CATEGORY_COLOR_PRESETS, ColoredChip } from "../ui/CategoryChip";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
@@ -29,6 +31,8 @@ import {
   useFormDirty,
 } from "../ui/primitives";
 import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
+
+const DEFAULT_CARD_COLOR = "#64748b";
 
 function currencyMinor(
   totals: Array<{ currency: string; purchaseTotalMinor: number }>,
@@ -48,6 +52,7 @@ export function CardsScreen() {
   const auth = useAuth();
   const { can } = usePermissions();
   const token = auth.token;
+  const members = auth.me?.household.members ?? [];
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [viewMonth, setViewMonth] = useState(currentYearMonth(timezone));
   const [cards, setCards] = useState<CardOverview[]>([]);
@@ -65,6 +70,7 @@ export function CardsScreen() {
   const [periodMonth, setPeriodMonth] = useState(currentYearMonth(timezone));
   const [closingOn, setClosingOn] = useState("");
   const [dueOn, setDueOn] = useState("");
+  const [color, setColor] = useState(DEFAULT_CARD_COLOR);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [query, setQuery] = useState("");
@@ -116,7 +122,7 @@ export function CardsScreen() {
     [],
   );
   const sortedCards = useSortedItems(filteredCards, sortId, sortOptions);
-  const dirty = useFormDirty(formOpen, [name, kind, brand, last4, accountId, currency, periodMonth, closingOn, dueOn]);
+  const dirty = useFormDirty(formOpen, [name, kind, brand, last4, accountId, currency, periodMonth, closingOn, dueOn, color]);
   const periodDirty = useFormDirty(periodOpen, [periodMonth, closingOn, dueOn]);
 
   function closeForm() {
@@ -131,6 +137,7 @@ export function CardsScreen() {
     setPeriodMonth(viewMonth);
     setClosingOn("");
     setDueOn("");
+    setColor(DEFAULT_CARD_COLOR);
   }
 
   function closePeriod() {
@@ -156,6 +163,7 @@ export function CardsScreen() {
     setLast4(card.last4);
     setAccountId(card.accountId ?? "");
     setCurrency(card.currency);
+    setColor(card.color);
     setPeriodMonth(viewMonth);
     setClosingOn(card.period?.closingOn ?? "");
     setDueOn(card.period?.dueOn ?? "");
@@ -202,7 +210,7 @@ export function CardsScreen() {
             <Card key={card.id} onPress={() => startEdit(card)}>
               <Row
                 subtitle={`${cardKindLabel(card.kind)} · ${card.brand} · ${card.last4}`}
-                title={card.name}
+                title={<ColoredChip name={card.name} color={card.color} />}
               />
               {card.kind === "CREDIT" ? (
                 <View style={styles.totals}>
@@ -250,7 +258,7 @@ export function CardsScreen() {
             return;
           }
           setBusy(true);
-          const body: Record<string, unknown> = { name: name.trim(), brand, last4 };
+          const body: Record<string, unknown> = { name: name.trim(), brand, last4, color };
           if (kind === "DEBIT") {
             body.accountId = accountId;
           } else {
@@ -295,6 +303,7 @@ export function CardsScreen() {
               name: name.trim(),
               brand,
               last4,
+              color,
               ...(kind === "DEBIT" ? { accountId } : { currency: currency.trim().toUpperCase() }),
             })
               .then((card) => afterSave(card.id))
@@ -309,6 +318,22 @@ export function CardsScreen() {
         visible={formOpen}
       >
         <TextField label="Nombre" onChangeText={setName} value={name} />
+        <View style={styles.colorBlock}>
+          <ColoredChip name={name.trim() === "" ? "Tarjeta" : name.trim()} color={color} />
+          <View style={styles.swatches}>
+            {CATEGORY_COLOR_PRESETS.map((preset) => (
+              <Pressable
+                key={preset}
+                onPress={() => setColor(preset)}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: preset },
+                  color === preset ? styles.swatchActive : undefined,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
         {editingId === undefined ? (
           <SelectField
             label="Tipo"
@@ -351,6 +376,9 @@ export function CardsScreen() {
             <DateField label="Fecha de cierre" onChange={setClosingOn} value={closingOn} />
             <DateField label="Fecha de vencimiento" onChange={setDueOn} value={dueOn} />
           </>
+        )}
+        {editingId === undefined ? null : (
+          <AuditFooter audit={cards.find((card) => card.id === editingId)} members={members} />
         )}
       </FormSheet>
       <FormSheet
@@ -397,5 +425,23 @@ const styles = StyleSheet.create({
   },
   alertText: {
     color: colors.ink,
+  },
+  colorBlock: {
+    gap: space.sm,
+  },
+  swatches: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  swatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.line,
+  },
+  swatchActive: {
+    borderColor: colors.ink,
   },
 });

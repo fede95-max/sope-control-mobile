@@ -15,7 +15,8 @@ import { usePermissions } from "../auth/usePermissions";
 import { typeLabel } from "../labels";
 import { currentCalendarDate, formatAmountFromMinor, formatCalendarDate, parseAmountToMinor } from "../money";
 import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
-import { DateField, SelectField, TextField } from "../ui/fields";
+import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
+import { AuditFooter } from "../ui/AuditFooter";
 import { Amount, Card as ListCard, Row } from "../ui/list";
 import {
   EmptyState,
@@ -34,6 +35,7 @@ export function RecurringScreen() {
   const auth = useAuth();
   const { can } = usePermissions();
   const token = auth.token;
+  const members = auth.me?.household.members ?? [];
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [items, setItems] = useState<Recurring[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -344,7 +346,7 @@ export function RecurringScreen() {
           ]}
           value={type}
         />
-        <TextField keyboardType="decimal-pad" label="Monto" onChangeText={setAmount} placeholder="15.000,00" value={amount} />
+        <AmountField label="Monto" onChangeText={setAmount} placeholder="15.000,00" value={amount} />
         <TextField label="Descripción" onChangeText={setDescription} value={description} />
         <DateField label="Desde" onChange={setStartOn} value={startOn} />
         {type === "EXPENSE" ? (
@@ -396,6 +398,9 @@ export function RecurringScreen() {
             value={accountId}
           />
         ) : null}
+        {editingId === undefined ? null : (
+          <AuditFooter audit={items.find((item) => item.id === editingId)} members={members} />
+        )}
       </FormSheet>
     </Screen>
   );

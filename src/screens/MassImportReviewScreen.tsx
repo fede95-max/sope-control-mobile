@@ -24,7 +24,8 @@ import {
 } from "../money";
 import { colors, space } from "../theme";
 import { Chip, FilterRow, GhostButton, PrimaryButton, SearchBar, SortSelect } from "../ui/controls";
-import { DateField, SelectField, TextField } from "../ui/fields";
+import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
+import { AuditFooter } from "../ui/AuditFooter";
 import { Amount, Card as ListCard, Row } from "../ui/list";
 import {
   EmptyState,
@@ -261,6 +262,9 @@ export function MassImportReviewScreen() {
         <Text style={styles.meta}>
           {targetName} · {targetCurrency} · {massImport?.status ?? ""}
         </Text>
+        {massImport === undefined ? null : (
+          <AuditFooter audit={massImport} members={auth.me?.household.members ?? []} />
+        )}
         <FilterRow>
           {massImport?.files.map((file) => (
             <Chip
@@ -417,7 +421,7 @@ export function MassImportReviewScreen() {
           ]}
           value={status}
         />
-        <TextField editable={!readonly} keyboardType="decimal-pad" label="Monto" onChangeText={setAmount} value={amount} />
+        <AmountField editable={!readonly} label="Monto" onChangeText={setAmount} value={amount} />
         <SelectField
           disabled={readonly}
           label="Moneda"

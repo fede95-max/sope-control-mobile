@@ -6,6 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { categoryKindLabel } from "../labels";
 import { CategoryChip, CATEGORY_COLOR_PRESETS } from "../ui/CategoryChip";
+import { AuditFooter } from "../ui/AuditFooter";
 import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { colors, space } from "../theme";
 import { SelectField, TextField } from "../ui/fields";
@@ -24,7 +25,9 @@ import {
 import { compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function CategoriesScreen() {
-  const token = useAuth().token;
+  const auth = useAuth();
+  const token = auth.token;
+  const members = auth.me?.household.members ?? [];
   const { can } = usePermissions();
   const [categories, setCategories] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
@@ -215,6 +218,9 @@ export function CategoriesScreen() {
             ))}
           </View>
         </View>
+        {editingId === undefined ? null : (
+          <AuditFooter audit={categories.find((category) => category.id === editingId)} members={members} />
+        )}
       </FormSheet>
     </Screen>
   );

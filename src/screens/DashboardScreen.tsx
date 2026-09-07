@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
-import { getDashboard, listCategories, shareMonthExcel } from "../api/sope";
-import type { Category, Dashboard } from "../api/types";
+import { getDashboard, listBudgets, listCategories, shareMonthExcel } from "../api/sope";
+import type { Budget, Category, Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { currentYearMonth, formatAmountFromMinor } from "../money";
@@ -15,11 +15,13 @@ import { compareNumber, compareText, useSortedItems, type SortOption } from "../
 export function DashboardScreen() {
   const auth = useAuth();
   const { can } = usePermissions();
+  const canReadBudgets = can("budgets:read");
   const token = auth.token;
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [month, setMonth] = useState(currentYearMonth(timezone));
   const [dashboard, setDashboard] = useState<Dashboard | undefined>(undefined);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
@@ -31,10 +33,15 @@ export function DashboardScreen() {
       return;
     }
     setBusy(true);
-    void Promise.all([getDashboard(token, month), listCategories(token)])
-      .then(([nextDashboard, nextCategories]) => {
+    void Promise.all([
+      getDashboard(token, month),
+      listCategories(token),
+      canReadBudgets ? listBudgets(token, month) : Promise.resolve([]),
+    ])
+      .then(([nextDashboard, nextCategories, nextBudgets]) => {
         setDashboard(nextDashboard);
         setCategories(nextCategories);
+        setBudgets(nextBudgets);
         setError(undefined);
       })
       .catch((cause: unknown) => setError(toErrorMessage(cause)))
@@ -43,9 +50,10 @@ export function DashboardScreen() {
 
   useEffect(() => {
     reload();
-  }, [token, month]);
+  }, [token, month, canReadBudgets]);
 
   const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const budgetByKey = new Map(budgets.map((budget) => [`${budget.categoryId}#${budget.currency}`, budget]));
   const currencies = useMemo(
     () => [...new Set((dashboard?.expensesByCategory ?? []).map((row) => row.currency))].sort(),
     [dashboard],
@@ -138,10 +146,21 @@ export function DashboardScreen() {
         ) : (
           sortedRows.map((row) => {
             const category = categoryById.get(row.categoryId);
+            const budget = budgetByKey.get(`${row.categoryId}#${row.currency}`);
+            const spent = formatAmountFromMinor(row.amountMinor);
             return (
               <Card key={`${row.categoryId}-${row.currency}`}>
                 <Row
-                  right={<Amount currency={row.currency} value={formatAmountFromMinor(row.amountMinor)} />}
+                  right={
+                    <Amount
+                      currency={row.currency}
+                      value={
+                        canReadBudgets && budget !== undefined
+                          ? `${spent} / ${formatAmountFromMinor(budget.amountMinor)}`
+                          : spent
+                      }
+                    />
+                  }
                   title={
                     <CategoryChip
                       name={category?.name ?? row.categoryId}

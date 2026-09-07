@@ -21,9 +21,10 @@ import {
   formatInstallment,
   parseAmountToMinor,
 } from "../money";
-import { CategoryChip } from "../ui/CategoryChip";
+import { CategoryChip, ColoredChip } from "../ui/CategoryChip";
+import { AuditFooter } from "../ui/AuditFooter";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
-import { DateField, SelectField, TextField } from "../ui/fields";
+import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
 import {
   EmptyState,
@@ -43,6 +44,7 @@ export function TransactionsScreen() {
   const auth = useAuth();
   const { can } = usePermissions();
   const token = auth.token;
+  const members = auth.me?.household.members ?? [];
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [month, setMonth] = useState(currentYearMonth(timezone));
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -100,6 +102,8 @@ export function TransactionsScreen() {
   }, [token, month]);
 
   const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const accountById = new Map(accounts.map((account) => [account.id, account]));
+  const cardById = new Map(cards.map((card) => [card.id, card]));
   const accountName = new Map(accounts.map((account) => [account.id, account.name]));
   const cardName = new Map(cards.map((card) => [card.id, card.name]));
   const filteredTransactions = useMemo(() => {
@@ -309,6 +313,8 @@ export function TransactionsScreen() {
               formatInstallment(transaction.installmentNumber, transaction.installmentCount),
             ].filter((part) => part !== "");
             const category = categoryById.get(transaction.categoryId ?? "");
+            const account = accountById.get(transaction.accountId ?? "");
+            const card = cardById.get(transaction.cardId ?? "");
             return (
               <ListCard key={transaction.id} onPress={() => startEdit(transaction)}>
                 <Row
@@ -323,6 +329,10 @@ export function TransactionsScreen() {
                   title={transaction.description ?? typeLabel(transaction.type)}
                 />
                 {category === undefined ? null : <CategoryChip name={category.name} color={category.color} />}
+                {account === undefined || transaction.type === "TRANSFER" ? null : (
+                  <ColoredChip name={account.name} color={account.color} />
+                )}
+                {card === undefined ? null : <ColoredChip name={card.name} color={card.color} />}
                 <StatusPill pending={transaction.status === "PENDING"} />
               </ListCard>
             );
@@ -411,7 +421,7 @@ export function TransactionsScreen() {
           ]}
           value={status}
         />
-        <TextField keyboardType="decimal-pad" label="Monto" onChangeText={setAmount} placeholder="1.234,56" value={amount} />
+        <AmountField label="Monto" onChangeText={setAmount} placeholder="1.234,56" value={amount} />
         <DateField label="Fecha" onChange={setOccurredOn} value={occurredOn} />
         {status === "APPROVED" ? (
           <DateField label="Acreditación" onChange={setApprovedOn} value={approvedOn} />
@@ -485,6 +495,9 @@ export function TransactionsScreen() {
               />
             )}
           </>
+        )}
+        {editingId === undefined ? null : (
+          <AuditFooter audit={transactions.find((item) => item.id === editingId)} members={members} />
         )}
       </FormSheet>
     </Screen>

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { createAccount, deleteAccount, listAccounts, updateAccount } from "../api/sope";
 import type { Account } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { accountTypeLabel } from "../labels";
 import { formatAmountFromMinor } from "../money";
+import { colors, space } from "../theme";
+import { AuditFooter } from "../ui/AuditFooter";
+import { CATEGORY_COLOR_PRESETS, ColoredChip } from "../ui/CategoryChip";
 import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { SelectField, TextField } from "../ui/fields";
 import { Amount, Card, Row } from "../ui/list";
@@ -22,14 +25,19 @@ import {
 } from "../ui/primitives";
 import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
+const DEFAULT_ACCOUNT_COLOR = "#64748b";
+
 export function AccountsScreen() {
-  const token = useAuth().token;
+  const auth = useAuth();
+  const token = auth.token;
+  const members = auth.me?.household.members ?? [];
   const { can } = usePermissions();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [name, setName] = useState("");
   const [type, setType] = useState("CASH");
   const [currency, setCurrency] = useState("ARS");
+  const [color, setColor] = useState(DEFAULT_ACCOUNT_COLOR);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
@@ -73,13 +81,14 @@ export function AccountsScreen() {
     [],
   );
   const sortedAccounts = useSortedItems(filteredAccounts, sortId, sortOptions);
-  const dirty = useFormDirty(formOpen, [name, type, currency]);
+  const dirty = useFormDirty(formOpen, [name, type, currency, color]);
 
   function resetForm() {
     setEditingId(undefined);
     setName("");
     setType("CASH");
     setCurrency("ARS");
+    setColor(DEFAULT_ACCOUNT_COLOR);
     setFormOpen(false);
   }
 
@@ -94,6 +103,7 @@ export function AccountsScreen() {
     setName(account.name);
     setType(account.type);
     setCurrency(account.currency);
+    setColor(account.color);
     setError(undefined);
     setFormOpen(true);
   }
@@ -121,7 +131,7 @@ export function AccountsScreen() {
               <Row
                 right={<Amount currency={account.currency} value={formatAmountFromMinor(account.balanceMinor)} />}
                 subtitle={accountTypeLabel(account.type)}
-                title={account.name}
+                title={<ColoredChip name={account.name} color={account.color} />}
               />
             </Card>
           ))
@@ -157,7 +167,7 @@ export function AccountsScreen() {
             return;
           }
           setBusy(true);
-          const body = { name: name.trim(), type, currency: currency.trim().toUpperCase() };
+          const body = { name: name.trim(), type, currency: currency.trim().toUpperCase(), color };
           const request =
             editingId === undefined ? createAccount(token, body) : updateAccount(token, editingId, body);
           void request
@@ -187,7 +197,48 @@ export function AccountsScreen() {
           value={type}
         />
         <TextField label="Moneda" onChangeText={setCurrency} value={currency} />
+        <View style={styles.colorBlock}>
+          <ColoredChip name={name.trim() === "" ? "Cuenta" : name.trim()} color={color} />
+          <View style={styles.swatches}>
+            {CATEGORY_COLOR_PRESETS.map((preset) => (
+              <Pressable
+                key={preset}
+                onPress={() => setColor(preset)}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: preset },
+                  color === preset ? styles.swatchActive : undefined,
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+        {editingId === undefined ? null : (
+          <AuditFooter audit={accounts.find((account) => account.id === editingId)} members={members} />
+        )}
       </FormSheet>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  colorBlock: {
+    gap: space.sm,
+  },
+  swatches: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  swatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.line,
+  },
+  swatchActive: {
+    borderColor: colors.ink,
+  },
+});
+

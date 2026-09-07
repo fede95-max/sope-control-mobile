@@ -33,6 +33,38 @@ export function parseAmountToMinor(value: string): number {
   return amountMinor;
 }
 
+export function sanitizeAmountInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d.,]/g, "");
+  if (cleaned.includes(",")) {
+    const [wholePart = "", ...rest] = cleaned.split(",");
+    const whole = wholePart.replace(/\./g, "").replace(/\D/g, "");
+    const fraction = rest.join("").replace(/\D/g, "").slice(0, 2);
+    return cleaned.endsWith(",") || fraction !== "" ? `${whole},${fraction}` : whole;
+  }
+  if (/^\d+\.\d{1,2}$/.test(cleaned)) {
+    const [whole = "", fraction = ""] = cleaned.split(".");
+    return `${whole},${fraction}`;
+  }
+  if (cleaned.endsWith(".") && cleaned.replace(/\./g, "") !== "") {
+    return `${cleaned.replace(/\./g, "")},`;
+  }
+  return cleaned.replace(/\./g, "").replace(/\D/g, "");
+}
+
+export function formatAmountInput(raw: string): string {
+  const sanitized = sanitizeAmountInput(raw);
+  if (sanitized === "") {
+    return "";
+  }
+  const hasComma = sanitized.includes(",");
+  const [wholeRaw = "", fraction] = sanitized.split(",");
+  const grouped = wholeRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  if (!hasComma) {
+    return grouped;
+  }
+  return `${grouped},${fraction ?? ""}`;
+}
+
 export function formatCalendarDate(value: string | undefined): string {
   if (value === undefined || value === "") {
     return "";

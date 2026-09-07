@@ -19,6 +19,7 @@ import {
 import { apiDownload, apiRequest } from "./client";
 import type {
   Account,
+  AuditFields,
   Budget,
   Card,
   CardOverview,
@@ -48,6 +49,19 @@ function requireRecord(value: unknown, label: string): Record<string, unknown> {
   return value;
 }
 
+function parseAudit(item: Record<string, unknown>): AuditFields {
+  const createdByUserId = readNullableString(item, "createdByUserId");
+  const updatedByUserId = readNullableString(item, "updatedByUserId");
+  const createdAt = readNullableString(item, "createdAt");
+  const updatedAt = readNullableString(item, "updatedAt");
+  return {
+    ...(createdByUserId === undefined ? {} : { createdByUserId }),
+    ...(updatedByUserId === undefined ? {} : { updatedByUserId }),
+    ...(createdAt === undefined ? {} : { createdAt }),
+    ...(updatedAt === undefined ? {} : { updatedAt }),
+  };
+}
+
 function parseAccount(value: unknown): Account {
   const item = requireRecord(value, "account");
   return {
@@ -57,6 +71,8 @@ function parseAccount(value: unknown): Account {
     currency: readString(item, "currency"),
     isActive: readBoolean(item, "isActive"),
     balanceMinor: typeof item.balanceMinor === "number" ? readNumber(item, "balanceMinor") : 0,
+    color: typeof item.color === "string" && item.color !== "" ? item.color : "#94a3b8",
+    ...parseAudit(item),
   };
 }
 
@@ -69,6 +85,7 @@ function parseCategory(value: unknown): Category {
     color: typeof item.color === "string" && item.color !== "" ? item.color : "#94a3b8",
     seedCode: readNullableString(item, "seedCode"),
     isActive: readBoolean(item, "isActive"),
+    ...parseAudit(item),
   };
 }
 
@@ -185,6 +202,7 @@ function parseTransaction(value: unknown): Transaction {
     installmentCount: readNullableNumber(item, "installmentCount"),
     installmentNumber: readNullableNumber(item, "installmentNumber"),
     massImportId: readNullableString(item, "massImportId"),
+    ...parseAudit(item),
   };
 }
 
@@ -201,6 +219,8 @@ function parseCard(value: unknown): Card {
     accountId: readNullableString(item, "accountId"),
     closingDay: readNullableNumber(item, "closingDay"),
     dueDay: readNullableNumber(item, "dueDay"),
+    color: typeof item.color === "string" && item.color !== "" ? item.color : "#94a3b8",
+    ...parseAudit(item),
   };
 }
 
@@ -267,6 +287,7 @@ function parseRecurring(value: unknown): Recurring {
     categoryId: readNullableString(item, "categoryId"),
     accountId: readNullableString(item, "accountId"),
     cardId: readNullableString(item, "cardId"),
+    ...parseAudit(item),
   };
 }
 
@@ -281,6 +302,7 @@ function parseBudget(value: unknown): Budget {
     spentMinor: readNumber(item, "spentMinor"),
     remainingMinor: readNumber(item, "remainingMinor"),
     percentUsed: readNumber(item, "percentUsed"),
+    ...parseAudit(item),
   };
 }
 
@@ -330,7 +352,7 @@ export async function listAccounts(token: string, includeInactive = false): Prom
 
 export async function createAccount(
   token: string,
-  body: { name: string; type: string; currency: string },
+  body: { name: string; type: string; currency: string; color?: string },
 ): Promise<Account> {
   return apiRequest({
     path: "/accounts",
@@ -902,8 +924,9 @@ function parseMassImport(value: unknown): MassImport {
     fileCount: readNumber(item, "fileCount"),
     detectedCount: readNumber(item, "detectedCount"),
     confirmedCount: readNullableNumber(item, "confirmedCount"),
-    createdAt: readString(item, "createdAt"),
     confirmedAt: readNullableString(item, "confirmedAt"),
+    ...parseAudit(item),
+    createdAt: readString(item, "createdAt"),
   };
 }
 

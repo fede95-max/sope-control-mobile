@@ -2,10 +2,35 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatCalendarDate, parseCalendarDate, toCalendarDate } from "../money";
+import { formatAmountInput, formatCalendarDate, parseCalendarDate, toCalendarDate } from "../money";
 import { colors, space } from "../theme";
 
 const SELECT_OPTION_HEIGHT = 48;
+
+export function AmountField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  editable = true,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder?: string;
+  editable?: boolean;
+}) {
+  return (
+    <TextField
+      editable={editable}
+      keyboardType="decimal-pad"
+      label={label}
+      onChangeText={(next) => onChangeText(formatAmountInput(next))}
+      placeholder={placeholder ?? "1.234,56"}
+      value={value}
+    />
+  );
+}
 
 export function TextField({
   label,

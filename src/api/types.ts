@@ -83,6 +83,13 @@ export type MeResponse = {
   permissions: string[];
 };
 
+export type AuditFields = {
+  createdByUserId?: string;
+  updatedByUserId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type Account = {
   id: string;
   name: string;
@@ -90,7 +97,8 @@ export type Account = {
   currency: string;
   isActive: boolean;
   balanceMinor: number;
-};
+  color: string;
+} & AuditFields;
 
 export type Category = {
   id: string;
@@ -99,7 +107,7 @@ export type Category = {
   color: string;
   seedCode: string | undefined;
   isActive: boolean;
-};
+} & AuditFields;
 
 export type TransactionStatus = "PENDING" | "APPROVED";
 
@@ -121,7 +129,7 @@ export type Transaction = {
   installmentCount: number | undefined;
   installmentNumber: number | undefined;
   massImportId: string | undefined;
-};
+} & AuditFields;
 
 export type Card = {
   id: string;
@@ -134,7 +142,8 @@ export type Card = {
   accountId: string | undefined;
   closingDay: number | undefined;
   dueDay: number | undefined;
-};
+  color: string;
+} & AuditFields;
 
 export type CardPeriod = {
   cardId: string;
@@ -167,7 +176,7 @@ export type Recurring = {
   categoryId: string | undefined;
   accountId: string | undefined;
   cardId: string | undefined;
-};
+} & AuditFields;
 
 export type CardStatement = {
   month: string;
@@ -189,7 +198,7 @@ export type Budget = {
   spentMinor: number;
   remainingMinor: number;
   percentUsed: number;
-};
+} & AuditFields;
 
 export type Dashboard = {
   month: string;
@@ -245,7 +254,7 @@ export type MassImport = {
   confirmedCount: number | undefined;
   createdAt: string;
   confirmedAt: string | undefined;
-};
+} & AuditFields;
 
 export type MassImportUpload = {
   fileId: string;

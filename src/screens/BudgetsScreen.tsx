@@ -7,7 +7,8 @@ import { usePermissions } from "../auth/usePermissions";
 import { currentYearMonth, formatAmountFromMinor, parseAmountToMinor } from "../money";
 import { colors } from "../theme";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
-import { SelectField, TextField } from "../ui/fields";
+import { SelectField, TextField, AmountField } from "../ui/fields";
+import { AuditFooter } from "../ui/AuditFooter";
 import { Amount, Card, Row } from "../ui/list";
 import {
   EmptyState,
@@ -26,6 +27,7 @@ export function BudgetsScreen() {
   const auth = useAuth();
   const { can } = usePermissions();
   const token = auth.token;
+  const members = auth.me?.household.members ?? [];
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [month, setMonth] = useState(currentYearMonth(timezone));
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -253,11 +255,14 @@ export function BudgetsScreen() {
         ) : (
           <Text style={styles.percent}>Categoría: {categoryName.get(categoryId) ?? categoryId}</Text>
         )}
-        <TextField keyboardType="decimal-pad" label="Monto" onChangeText={setAmount} placeholder="50.000,00" value={amount} />
+        <AmountField label="Monto" onChangeText={setAmount} placeholder="50.000,00" value={amount} />
         {editingId === undefined ? (
           <TextField label="Moneda" onChangeText={setCurrency} value={currency} />
         ) : (
           <Text style={styles.percent}>Moneda: {currency}</Text>
+        )}
+        {editingId === undefined ? null : (
+          <AuditFooter audit={budgets.find((budget) => budget.id === editingId)} members={members} />
         )}
       </FormSheet>
     </Screen>

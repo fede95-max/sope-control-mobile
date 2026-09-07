@@ -30,7 +30,7 @@ export function categoryChipTextColor(hex: string): string {
   return luminance > 0.62 ? "#0f172a" : "#ffffff";
 }
 
-export function CategoryChip({ name, color }: { name: string; color?: string }) {
+export function ColoredChip({ name, color }: { name: string; color?: string | undefined }) {
   if (name === "") {
     return null;
   }
@@ -40,6 +40,10 @@ export function CategoryChip({ name, color }: { name: string; color?: string }) 
       <Text style={[styles.text, { color: categoryChipTextColor(background) }]}>{name}</Text>
     </View>
   );
+}
+
+export function CategoryChip({ name, color }: { name: string; color?: string | undefined }) {
+  return <ColoredChip name={name} color={color} />;
 }
 
 const styles = StyleSheet.create({
