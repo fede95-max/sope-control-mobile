@@ -40,6 +40,10 @@ import {
 } from "../ui/primitives";
 import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
+function listDate(transaction: Transaction): string {
+  return transaction.approvedOn ?? transaction.occurredOn;
+}
+
 export function TransactionsScreen() {
   const auth = useAuth();
   const { can } = usePermissions();
@@ -131,6 +135,7 @@ export function TransactionsScreen() {
       }
       return matchesText(
         [
+          formatCalendarDate(listDate(transaction)),
           formatCalendarDate(transaction.occurredOn),
           typeLabel(transaction.type),
           formatAmountFromMinor(transaction.amountMinor),
@@ -146,8 +151,8 @@ export function TransactionsScreen() {
   const sortOptions = useMemo((): Array<SortOption<Transaction>> => {
     const names = new Map(categories.map((category) => [category.id, category.name]));
     return [
-      { id: "date-desc", label: "Fecha ↓", compare: (a, b) => compareText(b.occurredOn, a.occurredOn) },
-      { id: "date-asc", label: "Fecha ↑", compare: (a, b) => compareText(a.occurredOn, b.occurredOn) },
+      { id: "date-desc", label: "Fecha ↓", compare: (a, b) => compareText(listDate(b), listDate(a)) },
+      { id: "date-asc", label: "Fecha ↑", compare: (a, b) => compareText(listDate(a), listDate(b)) },
       { id: "amount-desc", label: "Monto ↓", compare: (a, b) => compareNumber(b.amountMinor, a.amountMinor) },
       { id: "amount-asc", label: "Monto ↑", compare: (a, b) => compareNumber(a.amountMinor, b.amountMinor) },
       { id: "description-az", label: "Descripción A-Z", compare: (a, b) => compareText(a.description, b.description) },
@@ -325,7 +330,7 @@ export function TransactionsScreen() {
                       value={formatAmountFromMinor(transaction.amountMinor)}
                     />
                   }
-                  subtitle={`${formatCalendarDate(transaction.occurredOn)} · ${typeLabel(transaction.type)}`}
+                  subtitle={`${formatCalendarDate(listDate(transaction))} · ${typeLabel(transaction.type)}`}
                   title={transaction.description ?? typeLabel(transaction.type)}
                 />
                 {category === undefined ? null : <CategoryChip name={category.name} color={category.color} />}
