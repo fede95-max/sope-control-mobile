@@ -69,6 +69,29 @@ export function Chip({
   );
 }
 
+export function CheckBox({
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked, disabled }}
+      disabled={disabled}
+      hitSlop={8}
+      onPress={() => onChange(!checked)}
+      style={[styles.checkbox, checked ? styles.checkboxChecked : undefined, disabled ? styles.checkboxDisabled : undefined]}
+    >
+      {checked ? <Text style={styles.checkboxMark}>✓</Text> : null}
+    </Pressable>
+  );
+}
+
 export function PrimaryButton({
   label,
   onPress,
@@ -152,6 +175,29 @@ const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: colors.teal,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: colors.teal,
+    borderColor: colors.teal,
+  },
+  checkboxDisabled: {
+    opacity: 0.5,
+  },
+  checkboxMark: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 16,
   },
   primary: {
     backgroundColor: colors.teal,

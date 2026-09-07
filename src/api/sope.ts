@@ -1,5 +1,6 @@
 import {
   cacheDirectory,
+  copyAsync,
   EncodingType,
   FileSystemUploadType,
   getInfoAsync,
@@ -1069,12 +1070,27 @@ export async function getLocalFileSize(uri: string): Promise<number> {
   return info.size;
 }
 
+async function resolveUploadUri(uri: string, name: string): Promise<string> {
+  if (uri.startsWith("file://")) {
+    return uri;
+  }
+  if (cacheDirectory === null) {
+    throw new Error("No hay espacio de caché para preparar el archivo");
+  }
+  const safeName = name.replace(/[^\w.\-]+/g, "_");
+  const dest = `${cacheDirectory}mass-import-${Date.now()}-${safeName}`;
+  await copyAsync({ from: uri, to: dest });
+  return dest;
+}
+
 export async function uploadMassImportFile(
   uploadUrl: string,
   uri: string,
   contentType: string,
+  originalFileName: string,
 ): Promise<void> {
-  const result = await uploadAsync(uploadUrl, uri, {
+  const uploadUri = await resolveUploadUri(uri, originalFileName);
+  const result = await uploadAsync(uploadUrl, uploadUri, {
     httpMethod: "PUT",
     headers: { "Content-Type": contentType },
     uploadType: FileSystemUploadType.BINARY_CONTENT,

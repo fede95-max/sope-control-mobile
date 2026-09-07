@@ -31,6 +31,27 @@ const MAX_FILES = 3;
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
+function guessContentType(name: string, mimeType?: string): string {
+  const normalized = mimeType?.trim().toLowerCase();
+  if (normalized === "image/jpg") {
+    return "image/jpeg";
+  }
+  if (normalized !== undefined && normalized !== "" && ALLOWED.has(normalized)) {
+    return normalized;
+  }
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".png")) {
+    return "image/png";
+  }
+  if (lower.endsWith(".webp")) {
+    return "image/webp";
+  }
+  if (lower.endsWith(".pdf")) {
+    return "application/pdf";
+  }
+  return "image/jpeg";
+}
+
 export function MassImportNewScreen() {
   const token = useAuth().token;
   const navigation = useNavigation<NativeStackNavigationProp<MoreStackParamList>>();
@@ -85,12 +106,13 @@ export function MassImportNewScreen() {
     }
     void addFiles(
       result.assets.flatMap((asset) => {
-        const contentType = asset.mimeType ?? "image/jpeg";
+        const name = asset.fileName ?? "imagen.jpg";
+        const contentType = guessContentType(name, asset.mimeType);
         const size = asset.fileSize ?? 0;
         return [
           {
             uri: asset.uri,
-            name: asset.fileName ?? "imagen.jpg",
+            name,
             size,
             contentType,
           },
@@ -115,7 +137,7 @@ export function MassImportNewScreen() {
         uri: asset.uri,
         name: asset.fileName ?? "captura.jpg",
         size: asset.fileSize ?? 0,
-        contentType: asset.mimeType ?? "image/jpeg",
+        contentType: guessContentType(asset.fileName ?? "captura.jpg", asset.mimeType),
       },
     ]);
   }
@@ -133,7 +155,7 @@ export function MassImportNewScreen() {
         uri: asset.uri,
         name: asset.name,
         size: asset.size ?? 0,
-        contentType: asset.mimeType ?? "application/pdf",
+        contentType: guessContentType(asset.name, asset.mimeType ?? "application/pdf"),
       })),
     );
   }
@@ -167,7 +189,7 @@ export function MassImportNewScreen() {
           if (file === undefined) {
             throw new Error("No se encontró el archivo para subir");
           }
-          await uploadMassImportFile(upload.uploadUrl, file.uri, file.contentType);
+          await uploadMassImportFile(upload.uploadUrl, file.uri, file.contentType, file.name);
         }
         return analyzeMassImport(token, created.massImport.id);
       })

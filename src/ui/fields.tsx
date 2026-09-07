@@ -1,4 +1,4 @@
-import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import DateTimePicker, { type DateTimePickerChangeEvent } from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -145,16 +145,17 @@ export function DateField({
 }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, space.sm);
   const date = value === "" ? new Date() : parseCalendarDate(value);
 
-  function onPick(_event: DateTimePickerEvent, next?: Date) {
+  function onValueChange(_event: DateTimePickerChangeEvent, next: Date) {
+    onChange(toCalendarDate(next));
     if (Platform.OS === "android") {
       setOpen(false);
     }
-    if (next !== undefined) {
-      onChange(toCalendarDate(next));
-    }
+  }
+
+  function onDismiss() {
+    setOpen(false);
   }
 
   return (
@@ -176,7 +177,7 @@ export function DateField({
         ) : null}
       </View>
       {open && Platform.OS === "android" ? (
-        <DateTimePicker display="default" mode="date" onChange={onPick} value={date} />
+        <DateTimePicker display="default" mode="date" onDismiss={onDismiss} onValueChange={onValueChange} value={date} />
       ) : null}
       {Platform.OS === "ios" ? (
         <Modal animationType="slide" onRequestClose={() => setOpen(false)} transparent visible={open}>
@@ -185,7 +186,7 @@ export function DateField({
               <Pressable onPress={() => setOpen(false)} style={styles.doneRow}>
                 <Text style={styles.done}>Listo</Text>
               </Pressable>
-              <DateTimePicker display="spinner" mode="date" onChange={onPick} value={date} />
+              <DateTimePicker display="spinner" mode="date" onValueChange={onValueChange} value={date} />
             </View>
           </Pressable>
         </Modal>

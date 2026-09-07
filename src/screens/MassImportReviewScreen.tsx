@@ -24,7 +24,7 @@ import {
 } from "../money";
 import { colors, space } from "../theme";
 import { CategoryChip } from "../ui/CategoryChip";
-import { Chip, FilterRow, GhostButton, PrimaryButton, SearchBar, SortSelect } from "../ui/controls";
+import { CheckBox, Chip, FilterRow, GhostButton, PrimaryButton, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
 import { AuditFooter } from "../ui/AuditFooter";
 import { Amount, Card as ListCard, Row } from "../ui/list";
@@ -158,6 +158,32 @@ export function MassImportReviewScreen() {
     }
     return category.kind === "EXPENSE" || category.kind === "BOTH";
   });
+
+  function categoriesForType(itemType: string): Category[] {
+    return categories.filter((category) => {
+      if (itemType === "INCOME") {
+        return category.kind === "INCOME" || category.kind === "BOTH";
+      }
+      return category.kind === "EXPENSE" || category.kind === "BOTH";
+    });
+  }
+
+  function changeCategory(item: MassImportDraftItem, nextCategoryId: string) {
+    if (nextCategoryId === "" || item.categoryId === nextCategoryId) {
+      return;
+    }
+    setDraftItems((current) =>
+      current.map((entry) =>
+        entry.clientId === item.clientId ? { ...entry, categoryId: nextCategoryId } : entry,
+      ),
+    );
+  }
+
+  function setItemSelected(clientId: string, selected: boolean) {
+    setDraftItems((current) =>
+      current.map((entry) => (entry.clientId === clientId ? { ...entry, selected } : entry)),
+    );
+  }
   const selectedCount = draftItems.filter((item) => item.selected).length;
   const activeFile = massImport?.files.find((file) => file.id === activeFileId);
   const visibleItems = useMemo(() => {
@@ -310,24 +336,33 @@ export function MassImportReviewScreen() {
           sortedItems.map((item) => {
             const category = categories.find((entry) => entry.id === item.categoryId);
             return (
-            <ListCard key={item.clientId} onPress={() => startEdit(item)}>
-              <Row
-                right={<Amount currency={item.currency || targetCurrency} value={item.amountMinor > 0 ? formatAmountFromMinor(item.amountMinor) : "—"} />}
-                subtitle={`${formatCalendarDate(item.occurredOn) || "sin fecha"} · Acr. ${formatCalendarDate(item.approvedOn) || "—"} · ${typeLabel(item.type)}`}
-                title={item.description ?? "(sin nombre)"}
-              />
-              {category === undefined ? null : <CategoryChip name={category.name} color={category.color} />}
-              {readonly ? null : (
-                <Pressable
-                  onPress={() =>
-                    setDraftItems((current) =>
-                      current.map((entry) => (entry.clientId === item.clientId ? { ...entry, selected: !entry.selected } : entry)),
-                    )
-                  }
-                  style={styles.checkRow}
-                >
-                  <Text style={styles.check}>{item.selected ? "Seleccionado" : "No guardar"}</Text>
+            <ListCard key={item.clientId}>
+              <View style={styles.itemHeader}>
+                {readonly ? null : (
+                  <CheckBox
+                    checked={item.selected}
+                    onChange={(selected) => setItemSelected(item.clientId, selected)}
+                  />
+                )}
+                <Pressable onPress={() => startEdit(item)} style={styles.itemBody}>
+                  <Row
+                    right={<Amount currency={item.currency || targetCurrency} value={item.amountMinor > 0 ? formatAmountFromMinor(item.amountMinor) : "—"} />}
+                    subtitle={`${formatCalendarDate(item.occurredOn) || "sin fecha"} · Acr. ${formatCalendarDate(item.approvedOn) || "—"} · ${typeLabel(item.type)}`}
+                    title={item.description ?? "(sin nombre)"}
+                  />
                 </Pressable>
+              </View>
+              {category === undefined ? null : <CategoryChip color={category.color} name={category.name} />}
+              {readonly ? null : (
+                <SelectField
+                  label="Categoría"
+                  onChange={(nextCategoryId) => changeCategory(item, nextCategoryId)}
+                  options={[
+                    { value: "", label: "Sin categoría" },
+                    ...categoriesForType(item.type).map((entry) => ({ value: entry.id, label: entry.name })),
+                  ]}
+                  value={item.categoryId ?? ""}
+                />
               )}
             </ListCard>
             );
@@ -466,12 +501,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 12,
   },
-  checkRow: {
-    marginTop: space.xs,
+  itemHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: space.sm,
   },
-  check: {
-    color: colors.teal,
-    fontWeight: "600",
+  itemBody: {
+    flex: 1,
   },
   actions: {
     gap: space.sm,
