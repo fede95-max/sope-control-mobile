@@ -23,6 +23,7 @@ import {
   parseAmountToMinor,
 } from "../money";
 import { colors, space } from "../theme";
+import { CategoryChip } from "../ui/CategoryChip";
 import { Chip, FilterRow, GhostButton, PrimaryButton, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
 import { AuditFooter } from "../ui/AuditFooter";
@@ -306,14 +307,16 @@ export function MassImportReviewScreen() {
         {sortedItems.length === 0 ? (
           <EmptyState text="No hay movimientos en este lote." />
         ) : (
-          sortedItems.map((item) => (
+          sortedItems.map((item) => {
+            const category = categories.find((entry) => entry.id === item.categoryId);
+            return (
             <ListCard key={item.clientId} onPress={() => startEdit(item)}>
               <Row
-                meta={categories.find((category) => category.id === item.categoryId)?.name ?? "Sin categoría"}
                 right={<Amount currency={item.currency || targetCurrency} value={item.amountMinor > 0 ? formatAmountFromMinor(item.amountMinor) : "—"} />}
-                subtitle={`${formatCalendarDate(item.occurredOn) || "sin fecha"} · ${typeLabel(item.type)}`}
+                subtitle={`${formatCalendarDate(item.occurredOn) || "sin fecha"} · Acr. ${formatCalendarDate(item.approvedOn) || "—"} · ${typeLabel(item.type)}`}
                 title={item.description ?? "(sin nombre)"}
               />
+              {category === undefined ? null : <CategoryChip name={category.name} color={category.color} />}
               {readonly ? null : (
                 <Pressable
                   onPress={() =>
@@ -327,7 +330,8 @@ export function MassImportReviewScreen() {
                 </Pressable>
               )}
             </ListCard>
-          ))
+            );
+          })
         )}
         {readonly ? null : (
           <View style={styles.actions}>
@@ -432,8 +436,8 @@ export function MassImportReviewScreen() {
           ]}
           value={currency}
         />
-        <DateField label="Fecha de compra" onChange={setOccurredOn} value={occurredOn} />
-        <DateField label="Acreditación" onChange={setApprovedOn} value={approvedOn} />
+        <DateField label="Fecha de compra" onChange={setOccurredOn} timeZone={timezone} value={occurredOn} />
+        <DateField label="Acreditación" onChange={setApprovedOn} timeZone={timezone} value={approvedOn} />
         <TextField editable={!readonly} label="Descripción" onChangeText={setDescription} value={description} />
         <SelectField
           disabled={readonly}

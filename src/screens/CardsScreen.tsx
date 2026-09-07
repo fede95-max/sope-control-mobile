@@ -373,8 +373,8 @@ export function CardsScreen() {
         ) : (
           <>
             <TextField label="Moneda" onChangeText={setCurrency} value={currency} />
-            <DateField label="Fecha de cierre" onChange={setClosingOn} value={closingOn} />
-            <DateField label="Fecha de vencimiento" onChange={setDueOn} value={dueOn} />
+            <DateField label="Fecha de cierre" onChange={setClosingOn} timeZone={timezone} value={closingOn} />
+            <DateField label="Fecha de vencimiento" onChange={setDueOn} timeZone={timezone} value={dueOn} />
           </>
         )}
         {editingId === undefined ? null : (
@@ -404,8 +404,8 @@ export function CardsScreen() {
         visible={periodOpen}
       >
         <MonthStepper onChange={setPeriodMonth} value={periodMonth} />
-        <DateField label="Fecha de cierre" onChange={setClosingOn} value={closingOn} />
-        <DateField label="Fecha de vencimiento" onChange={setDueOn} value={dueOn} />
+        <DateField label="Fecha de cierre" onChange={setClosingOn} timeZone={timezone} value={closingOn} />
+        <DateField label="Fecha de vencimiento" onChange={setDueOn} timeZone={timezone} value={dueOn} />
       </FormSheet>
     </Screen>
   );

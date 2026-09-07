@@ -2,7 +2,7 @@ import DateTimePicker, { type DateTimePickerEvent } from "@react-native-communit
 import { useState } from "react";
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatAmountInput, formatCalendarDate, parseCalendarDate, toCalendarDate } from "../money";
+import { currentCalendarDate, formatAmountInput, formatCalendarDate, parseCalendarDate, toCalendarDate } from "../money";
 import { colors, space } from "../theme";
 
 const SELECT_OPTION_HEIGHT = 48;
@@ -136,10 +136,12 @@ export function DateField({
   label,
   value,
   onChange,
+  timeZone,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  timeZone?: string;
 }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -158,11 +160,21 @@ export function DateField({
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
-      <Pressable onPress={() => setOpen(true)} style={[styles.input, styles.select]}>
-        <Text style={value === "" ? styles.placeholder : styles.selectText}>
-          {value === "" ? "Elegí una fecha" : formatCalendarDate(value)}
-        </Text>
-      </Pressable>
+      <View style={styles.dateRow}>
+        <Pressable onPress={() => setOpen(true)} style={[styles.input, styles.select, styles.dateInput]}>
+          <Text style={value === "" ? styles.placeholder : styles.selectText}>
+            {value === "" ? "Elegí una fecha" : formatCalendarDate(value)}
+          </Text>
+        </Pressable>
+        {timeZone !== undefined ? (
+          <Pressable
+            onPress={() => onChange(currentCalendarDate(timeZone))}
+            style={styles.todayButton}
+          >
+            <Text style={styles.todayText}>Hoy</Text>
+          </Pressable>
+        ) : null}
+      </View>
       {open && Platform.OS === "android" ? (
         <DateTimePicker display="default" mode="date" onChange={onPick} value={date} />
       ) : null}
@@ -203,6 +215,27 @@ const styles = StyleSheet.create({
   },
   inputDisabled: {
     opacity: 0.6,
+  },
+  dateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+  },
+  dateInput: {
+    flex: 1,
+  },
+  todayButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  todayText: {
+    color: colors.teal,
+    fontSize: 14,
+    fontWeight: "700",
   },
   select: {
     justifyContent: "center",

@@ -348,7 +348,7 @@ export function RecurringScreen() {
         />
         <AmountField label="Monto" onChangeText={setAmount} placeholder="15.000,00" value={amount} />
         <TextField label="Descripción" onChangeText={setDescription} value={description} />
-        <DateField label="Desde" onChange={setStartOn} value={startOn} />
+        <DateField label="Desde" onChange={setStartOn} timeZone={timezone} value={startOn} />
         {type === "EXPENSE" ? (
           <TextField
             keyboardType="numeric"
@@ -359,7 +359,7 @@ export function RecurringScreen() {
           />
         ) : null}
         {hasInstallments ? null : (
-          <DateField label="Hasta (vacío = 24 meses)" onChange={setEndOn} value={endOn} />
+          <DateField label="Hasta (vacío = 24 meses)" onChange={setEndOn} timeZone={timezone} value={endOn} />
         )}
         <TextField keyboardType="numeric" label="Día de cobro" onChangeText={setDayOfMonth} value={dayOfMonth} />
         <SelectField

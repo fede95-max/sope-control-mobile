@@ -422,9 +422,9 @@ export function TransactionsScreen() {
           value={status}
         />
         <AmountField label="Monto" onChangeText={setAmount} placeholder="1.234,56" value={amount} />
-        <DateField label="Fecha" onChange={setOccurredOn} value={occurredOn} />
+        <DateField label="Fecha" onChange={setOccurredOn} timeZone={timezone} value={occurredOn} />
         {status === "APPROVED" ? (
-          <DateField label="Acreditación" onChange={setApprovedOn} value={approvedOn} />
+          <DateField label="Acreditación" onChange={setApprovedOn} timeZone={timezone} value={approvedOn} />
         ) : null}
         <TextField label="Descripción" onChangeText={setDescription} value={description} />
         {editingId === undefined && type === "EXPENSE" ? (
