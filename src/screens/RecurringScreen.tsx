@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshControl, ScrollView } from "react-native";
+import { Pressable, RefreshControl, ScrollView } from "react-native";
 import {
   createRecurring,
   deleteRecurring,
@@ -14,6 +14,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { typeLabel } from "../labels";
 import { currentCalendarDate, formatAmountFromMinor, formatCalendarDate, parseAmountToMinor } from "../money";
+import { CategoryChip } from "../ui/CategoryChip";
 import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
 import { AuditFooter } from "../ui/AuditFooter";
@@ -60,6 +61,7 @@ export function RecurringScreen() {
   const [typeFilter, setTypeFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
   const [sortId, setSortId] = useState("name-az");
+  const [updatingCategoryId, setUpdatingCategoryId] = useState<string | undefined>(undefined);
 
   function reload() {
     if (token === undefined) {
@@ -143,6 +145,29 @@ export function RecurringScreen() {
     return category.kind === "EXPENSE" || category.kind === "BOTH";
   });
 
+  function categoriesForType(itemType: string): Category[] {
+    return categories.filter((category) => {
+      if (itemType === "INCOME") {
+        return category.kind === "INCOME" || category.kind === "BOTH";
+      }
+      return category.kind === "EXPENSE" || category.kind === "BOTH";
+    });
+  }
+
+  function changeCategory(item: Recurring, nextCategoryId: string) {
+    if (token === undefined || nextCategoryId === "" || item.categoryId === nextCategoryId) {
+      return;
+    }
+    setUpdatingCategoryId(item.id);
+    void updateRecurring(token, item.id, { categoryId: nextCategoryId })
+      .then((updated) => {
+        setItems((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)));
+        setError(undefined);
+      })
+      .catch((cause: unknown) => setError(toErrorMessage(cause)))
+      .finally(() => setUpdatingCategoryId(undefined));
+  }
+
   function resetForm() {
     setEditingId(undefined);
     setName("");
@@ -210,21 +235,36 @@ export function RecurringScreen() {
           <EmptyState text="No hay recurrentes." />
         ) : (
           sortedItems.map((item) => {
+            const category = categories.find((entry) => entry.id === item.categoryId);
             const extras = [
-              categoryName.get(item.categoryId ?? "") ?? "",
               accountName.get(item.accountId ?? "") ?? "",
               cardName.get(item.cardId ?? "") ?? "",
               `día ${item.dayOfMonth}`,
               item.installmentCount === undefined ? "" : `${item.installmentCount} cuotas`,
             ].filter((part) => part !== "");
             return (
-              <ListCard key={item.id} onPress={() => startEdit(item)}>
-                <Row
-                  meta={extras.join(" · ")}
-                  right={<Amount currency={item.currency} value={formatAmountFromMinor(item.amountMinor)} />}
-                  subtitle={`${typeLabel(item.type)} · ${formatCalendarDate(item.startOn)}${item.endOn === undefined ? "" : ` → ${formatCalendarDate(item.endOn)}`}`}
-                  title={item.name}
-                />
+              <ListCard key={item.id}>
+                <Pressable onPress={() => startEdit(item)}>
+                  <Row
+                    meta={extras.join(" · ")}
+                    right={<Amount currency={item.currency} value={formatAmountFromMinor(item.amountMinor)} />}
+                    subtitle={`${typeLabel(item.type)} · ${formatCalendarDate(item.startOn)}${item.endOn === undefined ? "" : ` → ${formatCalendarDate(item.endOn)}`}`}
+                    title={item.name}
+                  />
+                </Pressable>
+                {category === undefined ? null : <CategoryChip color={category.color} name={category.name} />}
+                {can("recurring:write") ? (
+                  <SelectField
+                    disabled={updatingCategoryId === item.id}
+                    label="Categoría"
+                    onChange={(nextCategoryId) => changeCategory(item, nextCategoryId)}
+                    options={[
+                      { value: "", label: "Elegí una categoría" },
+                      ...categoriesForType(item.type).map((entry) => ({ value: entry.id, label: entry.name })),
+                    ]}
+                    value={item.categoryId ?? ""}
+                  />
+                ) : null}
               </ListCard>
             );
           })
