@@ -44,6 +44,9 @@ export function MoreScreen() {
             value={auth.me?.user.householdId ?? ""}
           />
         ) : null}
+        <Card onPress={() => navigation.navigate("Settings")}>
+          <Row subtitle="Color de fondo y apariencia" title="Preferencias" />
+        </Card>
         {links
           .filter((link) => can(link.permission))
           .map((link) => (

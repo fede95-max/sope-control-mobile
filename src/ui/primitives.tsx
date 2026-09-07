@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiRequestError } from "../api/client";
+import { useAppearance } from "../appearance/AppearanceContext";
 import { colors, space } from "../theme";
 
 export function toErrorMessage(cause: unknown): string {
@@ -93,9 +94,10 @@ export function Screen({
 }) {
   const navigation = useNavigation();
   const canGoBack = navigation.canGoBack();
+  const { backgroundColor } = useAppearance();
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor }]} edges={["top"]}>
       <View style={styles.header}>
         {canGoBack ? (
           <Pressable onPress={() => navigation.goBack()} style={styles.back}>
@@ -147,6 +149,8 @@ export function FormSheet({
   onDelete?: (() => void) | undefined;
   children: ReactNode;
 }) {
+  const { backgroundColor } = useAppearance();
+
   function requestClose() {
     if (!dirty) {
       onClose();
@@ -160,13 +164,15 @@ export function FormSheet({
 
   return (
     <Modal animationType="slide" onRequestClose={requestClose} visible={visible}>
-      <SafeAreaView style={styles.sheet}>
+      <SafeAreaView style={[styles.sheet, { backgroundColor }]}>
         <View style={styles.sheetHeader}>
-          <Pressable disabled={busy} onPress={requestClose}>
+          <Pressable disabled={busy} onPress={requestClose} style={styles.sheetHeaderSide}>
             <Text style={styles.sheetLink}>Cerrar</Text>
           </Pressable>
-          <Text style={styles.sheetTitle}>{title}</Text>
-          <Pressable disabled={busy} onPress={onSubmit}>
+          <Text ellipsizeMode="tail" numberOfLines={1} style={styles.sheetTitle}>
+            {title}
+          </Text>
+          <Pressable disabled={busy} onPress={onSubmit} style={styles.sheetHeaderSide}>
             {busy ? <ActivityIndicator color={colors.teal} /> : <Text style={styles.sheetLinkStrong}>{submitLabel}</Text>}
           </Pressable>
         </View>
@@ -198,7 +204,6 @@ export function FormSheet({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.bg,
   },
   header: {
     paddingHorizontal: space.lg,
@@ -262,7 +267,6 @@ const styles = StyleSheet.create({
   },
   sheet: {
     flex: 1,
-    backgroundColor: colors.bg,
   },
   sheetHeader: {
     flexDirection: "row",
@@ -274,10 +278,16 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
     backgroundColor: colors.surface,
   },
+  sheetHeaderSide: {
+    flexShrink: 0,
+  },
   sheetTitle: {
+    flex: 1,
     fontSize: 16,
     fontWeight: "700",
     color: colors.ink,
+    textAlign: "center",
+    marginHorizontal: space.xs,
   },
   sheetLink: {
     color: colors.muted,

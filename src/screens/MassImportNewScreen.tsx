@@ -1,9 +1,8 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
-import { ScrollView } from "react-native";
+import { Alert, ScrollView } from "react-native";
 import {
   analyzeMassImport,
   createMassImport,
@@ -28,6 +27,16 @@ type PickedFile = {
 };
 
 const MAX_FILES = 3;
+
+type DocumentPickerModule = typeof import("expo-document-picker");
+
+function loadDocumentPicker(): DocumentPickerModule | null {
+  try {
+    return require("expo-document-picker") as DocumentPickerModule;
+  } catch {
+    return null;
+  }
+}
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 
@@ -143,6 +152,15 @@ export function MassImportNewScreen() {
   }
 
   async function pickPdf() {
+    const DocumentPicker = loadDocumentPicker();
+    if (DocumentPicker === null) {
+      Alert.alert(
+        "Importación no disponible",
+        "El selector de archivos no está instalado en esta build. Ejecutá `npx expo run:android` para habilitarlo.",
+      );
+      return;
+    }
+
     const result = await DocumentPicker.getDocumentAsync({
       type: "application/pdf",
       multiple: true,

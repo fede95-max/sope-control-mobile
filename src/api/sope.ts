@@ -344,6 +344,20 @@ export async function switchActiveHousehold(token: string, householdId: string):
   });
 }
 
+export async function registerDeviceToken(
+  token: string,
+  fcmToken: string,
+  platform: "android" | "ios",
+): Promise<void> {
+  await apiRequest({
+    path: "/me/device-token",
+    method: "PUT",
+    token,
+    body: { fcmToken, platform },
+    parseJson: () => undefined,
+  });
+}
+
 export async function listAccounts(token: string, includeInactive = false): Promise<Account[]> {
   return apiRequest({
     path: includeInactive ? "/accounts?includeInactive=true" : "/accounts",
@@ -788,6 +802,27 @@ export async function listUsers(token: string): Promise<DirectoryUser[]> {
           },
         ];
       }),
+  });
+}
+
+export async function sendUserPushNotification(
+  token: string,
+  userId: string,
+  input: { title: string; body: string },
+): Promise<{ sent: number; failed: number; removedTokens: number }> {
+  return apiRequest({
+    path: `/users/${encodeURIComponent(userId)}/push-notification`,
+    method: "POST",
+    token,
+    body: input,
+    parseJson: (payload) => {
+      const root = requireRecord(payload, "push notification response");
+      return {
+        sent: readNumber(root, "sent"),
+        failed: readNumber(root, "failed"),
+        removedTokens: readNumber(root, "removedTokens"),
+      };
+    },
   });
 }
 
