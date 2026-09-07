@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { formatYearMonth, shiftYearMonth } from "../money";
 import { colors, space } from "../theme";
+import { SelectField } from "./fields";
 
 export function MonthStepper({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
@@ -31,6 +32,25 @@ export function SearchBar({ value, onChange }: { value: string; onChange: (value
 
 export function FilterRow({ children }: { children: ReactNode }) {
   return <View style={styles.filters}>{children}</View>;
+}
+
+export function SortSelect({
+  value,
+  onChange,
+  options,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ id: string; label: string }>;
+}) {
+  return (
+    <SelectField
+      label="Ordenar por"
+      onChange={onChange}
+      options={options.map((option) => ({ value: option.id, label: option.label }))}
+      value={value}
+    />
+  );
 }
 
 export function Chip({

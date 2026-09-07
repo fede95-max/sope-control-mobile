@@ -6,7 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { accountTypeLabel } from "../labels";
 import { formatAmountFromMinor } from "../money";
-import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { SelectField, TextField } from "../ui/fields";
 import { Amount, Card, Row } from "../ui/list";
 import {
@@ -20,6 +20,7 @@ import {
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function AccountsScreen() {
   const token = useAuth().token;
@@ -34,6 +35,7 @@ export function AccountsScreen() {
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [sortId, setSortId] = useState("name-az");
 
   function reload() {
     if (token === undefined) {
@@ -61,6 +63,16 @@ export function AccountsScreen() {
       );
     });
   }, [accounts, query, typeFilter]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<Account>> => [
+      { id: "name-az", label: "Nombre A-Z", compare: (a, b) => compareText(a.name, b.name) },
+      { id: "balance-desc", label: "Saldo ↓", compare: (a, b) => compareNumber(b.balanceMinor, a.balanceMinor) },
+      { id: "balance-asc", label: "Saldo ↑", compare: (a, b) => compareNumber(a.balanceMinor, b.balanceMinor) },
+      { id: "type-az", label: "Tipo A-Z", compare: (a, b) => compareText(accountTypeLabel(a.type), accountTypeLabel(b.type)) },
+    ],
+    [],
+  );
+  const sortedAccounts = useSortedItems(filteredAccounts, sortId, sortOptions);
   const dirty = useFormDirty(formOpen, [name, type, currency]);
 
   function resetForm() {
@@ -99,11 +111,12 @@ export function AccountsScreen() {
           <Chip active={typeFilter === "BANK"} label="Banco" onPress={() => setTypeFilter("BANK")} />
           <Chip active={typeFilter === "WALLET"} label="Billetera" onPress={() => setTypeFilter("WALLET")} />
         </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
-        {filteredAccounts.length === 0 ? (
+        {sortedAccounts.length === 0 ? (
           <EmptyState text="Todavía no hay cuentas." />
         ) : (
-          filteredAccounts.map((account) => (
+          sortedAccounts.map((account) => (
             <Card key={account.id} onPress={() => startEdit(account)}>
               <Row
                 right={<Amount currency={account.currency} value={formatAmountFromMinor(account.balanceMinor)} />}

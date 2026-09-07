@@ -6,7 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { categoryKindLabel } from "../labels";
 import { CategoryChip, CATEGORY_COLOR_PRESETS } from "../ui/CategoryChip";
-import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { colors, space } from "../theme";
 import { SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
@@ -21,6 +21,7 @@ import {
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function CategoriesScreen() {
   const token = useAuth().token;
@@ -35,6 +36,7 @@ export function CategoriesScreen() {
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("");
+  const [sortId, setSortId] = useState("name-az");
 
   function reload() {
     if (token === undefined) {
@@ -59,6 +61,14 @@ export function CategoriesScreen() {
       return matchesText([category.name, categoryKindLabel(category.kind), category.seedCode], query);
     });
   }, [categories, query, kindFilter]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<Category>> => [
+      { id: "name-az", label: "Nombre A-Z", compare: (a, b) => compareText(a.name, b.name) },
+      { id: "type-az", label: "Tipo A-Z", compare: (a, b) => compareText(categoryKindLabel(a.kind), categoryKindLabel(b.kind)) },
+    ],
+    [],
+  );
+  const sortedCategories = useSortedItems(filteredCategories, sortId, sortOptions);
   const dirty = useFormDirty(formOpen, [name, kind, color]);
 
   function resetForm() {
@@ -96,11 +106,12 @@ export function CategoriesScreen() {
           <Chip active={kindFilter === "INCOME"} label="Ingreso" onPress={() => setKindFilter("INCOME")} />
           <Chip active={kindFilter === "BOTH"} label="Ambos" onPress={() => setKindFilter("BOTH")} />
         </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
-        {filteredCategories.length === 0 ? (
+        {sortedCategories.length === 0 ? (
           <EmptyState text="No hay categorías." />
         ) : (
-          filteredCategories.map((category) => (
+          sortedCategories.map((category) => (
             <Card
               key={category.id}
               onPress={() => {

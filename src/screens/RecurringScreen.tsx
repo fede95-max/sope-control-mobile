@@ -14,7 +14,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { typeLabel } from "../labels";
 import { currentCalendarDate, formatAmountFromMinor, formatCalendarDate, parseAmountToMinor } from "../money";
-import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
 import {
@@ -28,6 +28,7 @@ import {
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function RecurringScreen() {
   const auth = useAuth();
@@ -55,6 +56,8 @@ export function RecurringScreen() {
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState("");
+  const [sortId, setSortId] = useState("name-az");
 
   function reload() {
     if (token === undefined) {
@@ -85,6 +88,12 @@ export function RecurringScreen() {
       if (typeFilter !== "" && item.type !== typeFilter) {
         return false;
       }
+      if (activeFilter === "active" && !item.isActive) {
+        return false;
+      }
+      if (activeFilter === "inactive" && item.isActive) {
+        return false;
+      }
       return matchesText(
         [
           item.name,
@@ -98,7 +107,17 @@ export function RecurringScreen() {
         query,
       );
     });
-  }, [items, query, typeFilter, categories, accounts, cards]);
+  }, [items, query, typeFilter, activeFilter, categories, accounts, cards]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<Recurring>> => [
+      { id: "name-az", label: "Nombre A-Z", compare: (a, b) => compareText(a.name, b.name) },
+      { id: "amount-desc", label: "Monto ↓", compare: (a, b) => compareNumber(b.amountMinor, a.amountMinor) },
+      { id: "day", label: "Día de cobro", compare: (a, b) => compareNumber(a.dayOfMonth, b.dayOfMonth) },
+      { id: "start", label: "Desde", compare: (a, b) => compareText(a.startOn, b.startOn) },
+    ],
+    [],
+  );
+  const sortedItems = useSortedItems(filteredItems, sortId, sortOptions);
   const hasInstallments = type === "EXPENSE" && installmentCount.trim() !== "";
   const dirty = useFormDirty(formOpen, [
     name,
@@ -180,12 +199,15 @@ export function RecurringScreen() {
           <Chip active={typeFilter === ""} label="Todos" onPress={() => setTypeFilter("")} />
           <Chip active={typeFilter === "EXPENSE"} label="Egreso" onPress={() => setTypeFilter("EXPENSE")} />
           <Chip active={typeFilter === "INCOME"} label="Ingreso" onPress={() => setTypeFilter("INCOME")} />
+          <Chip active={activeFilter === "active"} label="Activos" onPress={() => setActiveFilter(activeFilter === "active" ? "" : "active")} />
+          <Chip active={activeFilter === "inactive"} label="Inactivos" onPress={() => setActiveFilter(activeFilter === "inactive" ? "" : "inactive")} />
         </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
-        {filteredItems.length === 0 ? (
+        {sortedItems.length === 0 ? (
           <EmptyState text="No hay recurrentes." />
         ) : (
-          filteredItems.map((item) => {
+          sortedItems.map((item) => {
             const extras = [
               categoryName.get(item.categoryId ?? "") ?? "",
               accountName.get(item.accountId ?? "") ?? "",

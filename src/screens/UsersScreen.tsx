@@ -4,9 +4,10 @@ import { listUsers } from "../api/sope";
 import type { DirectoryUser } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { colors } from "../theme";
-import { SearchBar } from "../ui/controls";
+import { Chip, FilterRow, SearchBar, SortSelect } from "../ui/controls";
 import { Card, Row } from "../ui/list";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function UsersScreen() {
   const auth = useAuth();
@@ -14,6 +15,8 @@ export function UsersScreen() {
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [error, setError] = useState<string | undefined>(undefined);
   const [query, setQuery] = useState("");
+  const [rootOnly, setRootOnly] = useState(false);
+  const [sortId, setSortId] = useState("email-az");
   const [busy, setBusy] = useState(false);
 
   function reload() {
@@ -35,17 +38,32 @@ export function UsersScreen() {
   }, [token]);
 
   const filtered = useMemo(() => {
-    return users.filter((user) =>
-      matchesText(
+    return users.filter((user) => {
+      if (rootOnly && !user.isRoot) {
+        return false;
+      }
+      return matchesText(
         [
           user.email,
           user.isRoot ? "root" : "",
           ...user.memberships.flatMap((membership) => [membership.label, membership.groupName, membership.ownerEmail]),
         ],
         query,
-      ),
-    );
-  }, [users, query]);
+      );
+    });
+  }, [users, query, rootOnly]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<DirectoryUser>> => [
+      { id: "email-az", label: "Email A-Z", compare: (a, b) => compareText(a.email, b.email) },
+      {
+        id: "households-desc",
+        label: "Cant. hogares ↓",
+        compare: (a, b) => compareNumber(b.memberships.length, a.memberships.length),
+      },
+    ],
+    [],
+  );
+  const sorted = useSortedItems(filtered, sortId, sortOptions);
 
   return (
     <Screen title="Usuarios">
@@ -56,8 +74,12 @@ export function UsersScreen() {
         <ErrorBanner error={error} />
         <Text style={styles.hint}>Todos los usuarios, con los hogares asociados y su grupo en cada uno.</Text>
         <SearchBar onChange={setQuery} value={query} />
-        {filtered.length === 0 ? <EmptyState text="No hay usuarios." /> : null}
-        {filtered.map((user) => (
+        <FilterRow>
+          <Chip active={rootOnly} label="Solo root" onPress={() => setRootOnly((current) => !current)} />
+        </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        {sorted.length === 0 ? <EmptyState text="No hay usuarios." /> : null}
+        {sorted.map((user) => (
           <Card key={user.id}>
             <Row
               subtitle={user.isRoot ? "Root" : undefined}

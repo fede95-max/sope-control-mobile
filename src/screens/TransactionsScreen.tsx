@@ -12,7 +12,7 @@ import {
 import type { Account, Card, Category, Transaction, TransactionStatus } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
-import { resolveAccountLabel, resolveCardLabel, typeLabel } from "../labels";
+import { resolveAccountLabel, resolveCardLabel, statusLabel, typeLabel } from "../labels";
 import {
   currentCalendarDate,
   currentYearMonth,
@@ -22,7 +22,7 @@ import {
   parseAmountToMinor,
 } from "../money";
 import { CategoryChip } from "../ui/CategoryChip";
-import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
 import {
@@ -37,6 +37,7 @@ import {
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function TransactionsScreen() {
   const auth = useAuth();
@@ -67,6 +68,10 @@ export function TransactionsScreen() {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [accountFilter, setAccountFilter] = useState("");
+  const [cardFilter, setCardFilter] = useState("");
+  const [sortId, setSortId] = useState("date-desc");
 
   function reload() {
     if (token === undefined) {
@@ -105,6 +110,21 @@ export function TransactionsScreen() {
       if (statusFilter !== "" && transaction.status !== statusFilter) {
         return false;
       }
+      if (categoryFilter !== "" && transaction.categoryId !== categoryFilter) {
+        return false;
+      }
+      if (accountFilter !== "") {
+        const matchesAccount =
+          transaction.accountId === accountFilter ||
+          transaction.fromAccountId === accountFilter ||
+          transaction.toAccountId === accountFilter;
+        if (!matchesAccount) {
+          return false;
+        }
+      }
+      if (cardFilter !== "" && transaction.cardId !== cardFilter) {
+        return false;
+      }
       return matchesText(
         [
           formatCalendarDate(transaction.occurredOn),
@@ -118,7 +138,24 @@ export function TransactionsScreen() {
         query,
       );
     });
-  }, [transactions, query, typeFilter, statusFilter, categories, accounts, cards]);
+  }, [transactions, query, typeFilter, statusFilter, categoryFilter, accountFilter, cardFilter, categories, accounts, cards]);
+  const sortOptions = useMemo((): Array<SortOption<Transaction>> => {
+    const names = new Map(categories.map((category) => [category.id, category.name]));
+    return [
+      { id: "date-desc", label: "Fecha ↓", compare: (a, b) => compareText(b.occurredOn, a.occurredOn) },
+      { id: "date-asc", label: "Fecha ↑", compare: (a, b) => compareText(a.occurredOn, b.occurredOn) },
+      { id: "amount-desc", label: "Monto ↓", compare: (a, b) => compareNumber(b.amountMinor, a.amountMinor) },
+      { id: "amount-asc", label: "Monto ↑", compare: (a, b) => compareNumber(a.amountMinor, b.amountMinor) },
+      { id: "description-az", label: "Descripción A-Z", compare: (a, b) => compareText(a.description, b.description) },
+      {
+        id: "category-az",
+        label: "Categoría A-Z",
+        compare: (a, b) => compareText(names.get(a.categoryId ?? ""), names.get(b.categoryId ?? "")),
+      },
+      { id: "status", label: "Estado", compare: (a, b) => compareText(statusLabel(a.status), statusLabel(b.status)) },
+    ];
+  }, [categories]);
+  const sortedTransactions = useSortedItems(filteredTransactions, sortId, sortOptions);
   const dirty = useFormDirty(formOpen, [
     type,
     status,
@@ -242,11 +279,30 @@ export function TransactionsScreen() {
           <Chip active={typeFilter === "TRANSFER"} label={typeLabel("TRANSFER")} onPress={() => setTypeFilter("TRANSFER")} />
           <Chip active={statusFilter === "PENDING"} label="Pendiente" onPress={() => setStatusFilter(statusFilter === "PENDING" ? "" : "PENDING")} />
         </FilterRow>
+        <SelectField
+          label="Categoría"
+          onChange={setCategoryFilter}
+          options={[{ value: "", label: "Todas las categorías" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]}
+          value={categoryFilter}
+        />
+        <SelectField
+          label="Cuenta"
+          onChange={setAccountFilter}
+          options={[{ value: "", label: "Todas las cuentas" }, ...accounts.map((account) => ({ value: account.id, label: account.name }))]}
+          value={accountFilter}
+        />
+        <SelectField
+          label="Tarjeta"
+          onChange={setCardFilter}
+          options={[{ value: "", label: "Todas las tarjetas" }, ...cards.map((card) => ({ value: card.id, label: card.name }))]}
+          value={cardFilter}
+        />
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
-        {filteredTransactions.length === 0 ? (
+        {sortedTransactions.length === 0 ? (
           <EmptyState text="No hay movimientos." />
         ) : (
-          filteredTransactions.map((transaction) => {
+          sortedTransactions.map((transaction) => {
             const extras = [
               resolveAccountLabel(transaction, accountName),
               resolveCardLabel(transaction, cardName),

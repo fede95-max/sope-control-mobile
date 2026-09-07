@@ -6,7 +6,7 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { currentYearMonth, formatAmountFromMinor, parseAmountToMinor } from "../money";
 import { colors } from "../theme";
-import { GhostButton, MonthStepper, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { SelectField, TextField } from "../ui/fields";
 import { Amount, Card, Row } from "../ui/list";
 import {
@@ -20,6 +20,7 @@ import {
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function BudgetsScreen() {
   const auth = useAuth();
@@ -37,6 +38,8 @@ export function BudgetsScreen() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [currencyFilter, setCurrencyFilter] = useState("");
+  const [sortId, setSortId] = useState("category-az");
 
   function reload() {
     if (token === undefined) {
@@ -59,19 +62,38 @@ export function BudgetsScreen() {
 
   const categoryName = new Map(categories.map((category) => [category.id, category.name]));
   const expenseCategories = categories.filter((category) => category.kind !== "INCOME");
+  const currencies = useMemo(() => [...new Set(budgets.map((budget) => budget.currency))].sort(), [budgets]);
   const filteredBudgets = useMemo(() => {
-    return budgets.filter((budget) =>
-      matchesText(
+    const names = new Map(categories.map((category) => [category.id, category.name]));
+    return budgets.filter((budget) => {
+      if (currencyFilter !== "" && budget.currency !== currencyFilter) {
+        return false;
+      }
+      return matchesText(
         [
-          categoryName.get(budget.categoryId),
+          names.get(budget.categoryId),
           formatAmountFromMinor(budget.amountMinor),
           formatAmountFromMinor(budget.spentMinor),
           budget.currency,
         ],
         query,
-      ),
-    );
-  }, [budgets, query, categories]);
+      );
+    });
+  }, [budgets, query, categories, currencyFilter]);
+  const sortOptions = useMemo((): Array<SortOption<Budget>> => {
+    const names = new Map(categories.map((category) => [category.id, category.name]));
+    return [
+      {
+        id: "category-az",
+        label: "Categoría A-Z",
+        compare: (a, b) => compareText(names.get(a.categoryId), names.get(b.categoryId)),
+      },
+      { id: "limit-desc", label: "Límite ↓", compare: (a, b) => compareNumber(b.amountMinor, a.amountMinor) },
+      { id: "spent-desc", label: "Gastado ↓", compare: (a, b) => compareNumber(b.spentMinor, a.spentMinor) },
+      { id: "percent-desc", label: "% usado ↓", compare: (a, b) => compareNumber(b.percentUsed, a.percentUsed) },
+    ];
+  }, [categories]);
+  const sortedBudgets = useSortedItems(filteredBudgets, sortId, sortOptions);
   const dirty = useFormDirty(formOpen, [categoryId, amount, currency]);
 
   function resetForm() {
@@ -104,11 +126,25 @@ export function BudgetsScreen() {
       >
         <MonthStepper onChange={setMonth} value={month} />
         <SearchBar onChange={setQuery} value={query} />
+        {currencies.length > 1 ? (
+          <FilterRow>
+            <Chip active={currencyFilter === ""} label="Todas" onPress={() => setCurrencyFilter("")} />
+            {currencies.map((item) => (
+              <Chip
+                key={item}
+                active={currencyFilter === item}
+                label={item}
+                onPress={() => setCurrencyFilter(item)}
+              />
+            ))}
+          </FilterRow>
+        ) : null}
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
-        {filteredBudgets.length === 0 ? (
+        {sortedBudgets.length === 0 ? (
           <EmptyState text="No hay presupuestos este mes." />
         ) : (
-          filteredBudgets.map((budget) => (
+          sortedBudgets.map((budget) => (
             <Card
               key={budget.id}
               onPress={() => {

@@ -14,7 +14,7 @@ import { usePermissions } from "../auth/usePermissions";
 import { cardKindLabel } from "../labels";
 import { currentYearMonth, formatAmountFromMinor, formatCalendarDate } from "../money";
 import { colors } from "../theme";
-import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
 import {
@@ -28,13 +28,20 @@ import {
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
+
+function currencyMinor(
+  totals: Array<{ currency: string; purchaseTotalMinor: number }>,
+  currency: string,
+): number {
+  return totals.find((item) => item.currency === currency)?.purchaseTotalMinor ?? 0;
+}
 
 function currencyAmount(
   totals: Array<{ currency: string; purchaseTotalMinor: number }>,
   currency: string,
 ): string {
-  const found = totals.find((item) => item.currency === currency);
-  return formatAmountFromMinor(found?.purchaseTotalMinor ?? 0);
+  return formatAmountFromMinor(currencyMinor(totals, currency));
 }
 
 export function CardsScreen() {
@@ -62,6 +69,7 @@ export function CardsScreen() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [kindFilter, setKindFilter] = useState("");
+  const [sortId, setSortId] = useState("name-az");
 
   function reload() {
     if (token === undefined) {
@@ -94,6 +102,20 @@ export function CardsScreen() {
       );
     });
   }, [cards, query, kindFilter]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<CardOverview>> => [
+      { id: "name-az", label: "Nombre A-Z", compare: (a, b) => compareText(a.name, b.name) },
+      { id: "closing", label: "Cierre", compare: (a, b) => compareText(a.period?.closingOn, b.period?.closingOn) },
+      { id: "due", label: "Vencimiento", compare: (a, b) => compareText(a.dueOn, b.dueOn) },
+      {
+        id: "ars-desc",
+        label: "Total ARS ↓",
+        compare: (a, b) => compareNumber(currencyMinor(b.totalsByCurrency, "ARS"), currencyMinor(a.totalsByCurrency, "ARS")),
+      },
+    ],
+    [],
+  );
+  const sortedCards = useSortedItems(filteredCards, sortId, sortOptions);
   const dirty = useFormDirty(formOpen, [name, kind, brand, last4, accountId, currency, periodMonth, closingOn, dueOn]);
   const periodDirty = useFormDirty(periodOpen, [periodMonth, closingOn, dueOn]);
 
@@ -165,6 +187,7 @@ export function CardsScreen() {
           <Chip active={kindFilter === "CREDIT"} label="Crédito" onPress={() => setKindFilter("CREDIT")} />
           <Chip active={kindFilter === "DEBIT"} label="Débito" onPress={() => setKindFilter("DEBIT")} />
         </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
         {missingPeriod.length > 0 ? (
           <Card onPress={() => openPeriod(missingPeriod[0]!)}>
@@ -172,10 +195,10 @@ export function CardsScreen() {
             <Text style={styles.alertText}>{missingPeriod.map((card) => card.name).join(", ")}</Text>
           </Card>
         ) : null}
-        {filteredCards.length === 0 ? (
+        {sortedCards.length === 0 ? (
           <EmptyState text="Todavía no hay tarjetas." />
         ) : (
-          filteredCards.map((card) => (
+          sortedCards.map((card) => (
             <Card key={card.id} onPress={() => startEdit(card)}>
               <Row
                 subtitle={`${cardKindLabel(card.kind)} · ${card.brand} · ${card.last4}`}

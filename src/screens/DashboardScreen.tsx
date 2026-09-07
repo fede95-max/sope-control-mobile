@@ -7,9 +7,10 @@ import { usePermissions } from "../auth/usePermissions";
 import { currentYearMonth, formatAmountFromMinor } from "../money";
 import { colors, space } from "../theme";
 import { CategoryChip } from "../ui/CategoryChip";
-import { GhostButton, MonthStepper, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { Card, Row, Amount } from "../ui/list";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function DashboardScreen() {
   const auth = useAuth();
@@ -22,6 +23,8 @@ export function DashboardScreen() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
+  const [currencyFilter, setCurrencyFilter] = useState("");
+  const [sortId, setSortId] = useState("amount-desc");
 
   function reload() {
     if (token === undefined) {
@@ -43,14 +46,35 @@ export function DashboardScreen() {
   }, [token, month]);
 
   const categoryById = new Map(categories.map((category) => [category.id, category]));
+  const currencies = useMemo(
+    () => [...new Set((dashboard?.expensesByCategory ?? []).map((row) => row.currency))].sort(),
+    [dashboard],
+  );
   const filteredRows = useMemo(() => {
-    return (dashboard?.expensesByCategory ?? []).filter((row) =>
-      matchesText(
-        [categoryById.get(row.categoryId)?.name ?? row.categoryId, row.currency, formatAmountFromMinor(row.amountMinor)],
+    const names = new Map(categories.map((category) => [category.id, category]));
+    return (dashboard?.expensesByCategory ?? []).filter((row) => {
+      if (currencyFilter !== "" && row.currency !== currencyFilter) {
+        return false;
+      }
+      return matchesText(
+        [names.get(row.categoryId)?.name ?? row.categoryId, row.currency, formatAmountFromMinor(row.amountMinor)],
         query,
-      ),
-    );
-  }, [dashboard, query, categories]);
+      );
+    });
+  }, [dashboard, query, categories, currencyFilter]);
+  const sortOptions = useMemo((): Array<SortOption<(typeof filteredRows)[number]>> => {
+    const names = new Map(categories.map((category) => [category.id, category.name]));
+    return [
+      { id: "amount-desc", label: "Monto ↓", compare: (a, b) => compareNumber(b.amountMinor, a.amountMinor) },
+      { id: "amount-asc", label: "Monto ↑", compare: (a, b) => compareNumber(a.amountMinor, b.amountMinor) },
+      {
+        id: "category-az",
+        label: "Categoría A-Z",
+        compare: (a, b) => compareText(names.get(a.categoryId) ?? a.categoryId, names.get(b.categoryId) ?? b.categoryId),
+      },
+    ];
+  }, [categories]);
+  const sortedRows = useSortedItems(filteredRows, sortId, sortOptions);
 
   return (
     <Screen
@@ -95,10 +119,24 @@ export function DashboardScreen() {
         ) : null}
         <Text style={styles.section}>Gastos por categoría</Text>
         <SearchBar onChange={setQuery} value={query} />
-        {filteredRows.length === 0 ? (
+        {currencies.length > 1 ? (
+          <FilterRow>
+            <Chip active={currencyFilter === ""} label="Todas" onPress={() => setCurrencyFilter("")} />
+            {currencies.map((currency) => (
+              <Chip
+                key={currency}
+                active={currencyFilter === currency}
+                label={currency}
+                onPress={() => setCurrencyFilter(currency)}
+              />
+            ))}
+          </FilterRow>
+        ) : null}
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        {sortedRows.length === 0 ? (
           <EmptyState text="Nada para mostrar." />
         ) : (
-          filteredRows.map((row) => {
+          sortedRows.map((row) => {
             const category = categoryById.get(row.categoryId);
             return (
               <Card key={`${row.categoryId}-${row.currency}`}>

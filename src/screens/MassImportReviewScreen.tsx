@@ -23,7 +23,7 @@ import {
   parseAmountToMinor,
 } from "../money";
 import { colors, space } from "../theme";
-import { Chip, FilterRow, GhostButton, PrimaryButton } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, PrimaryButton, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
 import {
@@ -32,10 +32,16 @@ import {
   FormSheet,
   Screen,
   confirmAction,
+  matchesText,
   screenContentStyle,
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
+
+function typeLabel(type: string): string {
+  return type === "INCOME" ? "Ingreso" : "Egreso";
+}
 
 function emptyManualItem(timezone: string, currency: string): MassImportDraftItem {
   const today = currentCalendarDate(timezone);
@@ -83,6 +89,10 @@ export function MassImportReviewScreen() {
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [installmentCount, setInstallmentCount] = useState("");
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [selectedOnly, setSelectedOnly] = useState(false);
+  const [sortId, setSortId] = useState("date-desc");
 
   useEffect(() => {
     if (token === undefined) {
@@ -148,6 +158,37 @@ export function MassImportReviewScreen() {
   });
   const selectedCount = draftItems.filter((item) => item.selected).length;
   const activeFile = massImport?.files.find((file) => file.id === activeFileId);
+  const visibleItems = useMemo(() => {
+    return draftItems.filter((item) => {
+      if (typeFilter !== "" && item.type !== typeFilter) {
+        return false;
+      }
+      if (selectedOnly && !item.selected) {
+        return false;
+      }
+      return matchesText(
+        [
+          item.description,
+          typeLabel(item.type),
+          formatAmountFromMinor(item.amountMinor),
+          item.currency,
+          formatCalendarDate(item.occurredOn),
+          categories.find((category) => category.id === item.categoryId)?.name,
+        ],
+        query,
+      );
+    });
+  }, [draftItems, query, typeFilter, selectedOnly, categories]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<MassImportDraftItem>> => [
+      { id: "date-desc", label: "Fecha ↓", compare: (a, b) => compareText(b.occurredOn, a.occurredOn) },
+      { id: "amount-desc", label: "Monto ↓", compare: (a, b) => compareNumber(b.amountMinor, a.amountMinor) },
+      { id: "description-az", label: "Descripción A-Z", compare: (a, b) => compareText(a.description, b.description) },
+      { id: "type", label: "Tipo", compare: (a, b) => compareText(typeLabel(a.type), typeLabel(b.type)) },
+    ],
+    [],
+  );
+  const sortedItems = useSortedItems(visibleItems, sortId, sortOptions);
   const confirmBlocked = useMemo(() => {
     return draftItems.some((item) => {
       if (!item.selected) {
@@ -250,15 +291,23 @@ export function MassImportReviewScreen() {
             />
           </>
         )}
-        {draftItems.length === 0 ? (
+        <SearchBar onChange={setQuery} value={query} />
+        <FilterRow>
+          <Chip active={typeFilter === ""} label="Todos" onPress={() => setTypeFilter("")} />
+          <Chip active={typeFilter === "EXPENSE"} label="Egreso" onPress={() => setTypeFilter("EXPENSE")} />
+          <Chip active={typeFilter === "INCOME"} label="Ingreso" onPress={() => setTypeFilter("INCOME")} />
+          <Chip active={selectedOnly} label="Solo seleccionados" onPress={() => setSelectedOnly((current) => !current)} />
+        </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        {sortedItems.length === 0 ? (
           <EmptyState text="No hay movimientos en este lote." />
         ) : (
-          draftItems.map((item) => (
+          sortedItems.map((item) => (
             <ListCard key={item.clientId} onPress={() => startEdit(item)}>
               <Row
                 meta={categories.find((category) => category.id === item.categoryId)?.name ?? "Sin categoría"}
                 right={<Amount currency={item.currency || targetCurrency} value={item.amountMinor > 0 ? formatAmountFromMinor(item.amountMinor) : "—"} />}
-                subtitle={`${formatCalendarDate(item.occurredOn) || "sin fecha"} · ${item.type === "INCOME" ? "Ingreso" : "Egreso"}`}
+                subtitle={`${formatCalendarDate(item.occurredOn) || "sin fecha"} · ${typeLabel(item.type)}`}
                 title={item.description ?? "(sin nombre)"}
               />
               {readonly ? null : (

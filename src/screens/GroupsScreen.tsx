@@ -11,7 +11,7 @@ import type { PermissionDefinition, UserGroup } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { colors, space } from "../theme";
-import { GhostButton, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
 import {
@@ -25,6 +25,7 @@ import {
   toErrorMessage,
   useFormDirty,
 } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 export function GroupsScreen() {
   const token = useAuth().token;
@@ -38,6 +39,8 @@ export function GroupsScreen() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [kindFilter, setKindFilter] = useState("");
+  const [sortId, setSortId] = useState("name-az");
 
   function reload() {
     if (token === undefined) {
@@ -59,10 +62,28 @@ export function GroupsScreen() {
   }, [token]);
 
   const filtered = useMemo(() => {
-    return groups.filter((group) =>
-      matchesText([group.name, group.isSystem ? "sistema" : "personalizado"], query),
-    );
-  }, [groups, query]);
+    return groups.filter((group) => {
+      if (kindFilter === "system" && !group.isSystem) {
+        return false;
+      }
+      if (kindFilter === "custom" && group.isSystem) {
+        return false;
+      }
+      return matchesText([group.name, group.isSystem ? "sistema" : "personalizado"], query);
+    });
+  }, [groups, query, kindFilter]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<UserGroup>> => [
+      { id: "name-az", label: "Nombre A-Z", compare: (a, b) => compareText(a.name, b.name) },
+      {
+        id: "permissions-desc",
+        label: "Cant. permisos ↓",
+        compare: (a, b) => compareNumber(b.permissions.length, a.permissions.length),
+      },
+    ],
+    [],
+  );
+  const sorted = useSortedItems(filtered, sortId, sortOptions);
   const editing = groups.find((group) => group.id === editingId);
   const dirty = useFormDirty(formOpen, [name, selected.join(",")]);
   const resources = useMemo(() => {
@@ -109,11 +130,17 @@ export function GroupsScreen() {
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <SearchBar onChange={setQuery} value={query} />
+        <FilterRow>
+          <Chip active={kindFilter === ""} label="Todos" onPress={() => setKindFilter("")} />
+          <Chip active={kindFilter === "system"} label="Sistema" onPress={() => setKindFilter("system")} />
+          <Chip active={kindFilter === "custom"} label="Personalizado" onPress={() => setKindFilter("custom")} />
+        </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <EmptyState text="No hay grupos." />
         ) : (
-          filtered.map((group) => (
+          sorted.map((group) => (
             <Card
               key={group.id}
               onPress={

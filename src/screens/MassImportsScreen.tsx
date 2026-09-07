@@ -8,9 +8,10 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import type { MoreStackParamList } from "../navigation/types";
 import { formatCalendarDate } from "../money";
-import { Chip, FilterRow, GhostButton, SearchBar } from "../ui/controls";
+import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { Card as ListCard, Row } from "../ui/list";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
+import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
 function statusLabel(status: MassImport["status"]): string {
   if (status === "DRAFT") {
@@ -43,6 +44,8 @@ export function MassImportsScreen() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [showCancelled, setShowCancelled] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [sortId, setSortId] = useState("date-desc");
 
   function reload() {
     if (token === undefined) {
@@ -66,7 +69,11 @@ export function MassImportsScreen() {
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
-      if (!showCancelled && item.status === "CANCELLED") {
+      if (statusFilter !== "") {
+        if (item.status !== statusFilter) {
+          return false;
+        }
+      } else if (!showCancelled && item.status === "CANCELLED") {
         return false;
       }
       return matchesText(
@@ -74,7 +81,21 @@ export function MassImportsScreen() {
         query,
       );
     });
-  }, [items, accounts, cards, query, showCancelled]);
+  }, [items, accounts, cards, query, showCancelled, statusFilter]);
+  const sortOptions = useMemo(
+    (): Array<SortOption<MassImport>> => [
+      { id: "date-desc", label: "Fecha ↓", compare: (a, b) => compareText(b.createdAt, a.createdAt) },
+      { id: "status", label: "Estado", compare: (a, b) => compareText(statusLabel(a.status), statusLabel(b.status)) },
+      { id: "detected-desc", label: "Detectados ↓", compare: (a, b) => compareNumber(b.detectedCount, a.detectedCount) },
+      {
+        id: "confirmed-desc",
+        label: "Confirmados ↓",
+        compare: (a, b) => compareNumber(b.confirmedCount ?? 0, a.confirmedCount ?? 0),
+      },
+    ],
+    [],
+  );
+  const sorted = useSortedItems(filtered, sortId, sortOptions);
 
   return (
     <Screen title="Movimientos masivos" actions={can("mass-imports:write") ? <GhostButton label="Nuevo" onPress={() => navigation.navigate("MassImportNew")} /> : undefined}>
@@ -84,17 +105,22 @@ export function MassImportsScreen() {
       >
         <SearchBar onChange={setQuery} value={query} />
         <FilterRow>
+          <Chip active={statusFilter === ""} label="Todos" onPress={() => setStatusFilter("")} />
+          <Chip active={statusFilter === "DRAFT"} label="Borrador" onPress={() => setStatusFilter("DRAFT")} />
+          <Chip active={statusFilter === "CONFIRMED"} label="Confirmado" onPress={() => setStatusFilter("CONFIRMED")} />
+          <Chip active={statusFilter === "CANCELLED"} label="Cancelado" onPress={() => setStatusFilter("CANCELLED")} />
           <Chip
             active={showCancelled}
             label="Mostrar cancelados"
             onPress={() => setShowCancelled((current) => !current)}
           />
         </FilterRow>
+        <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
         <ErrorBanner error={error} />
-        {filtered.length === 0 ? (
+        {sorted.length === 0 ? (
           <EmptyState text="No hay movimientos masivos." />
         ) : (
-          filtered.map((item) => (
+          sorted.map((item) => (
             <ListCard key={item.id} onPress={() => navigation.navigate("MassImportReview", { id: item.id })}>
               <Row
                 meta={`${item.fileCount} archivos · ${item.detectedCount} detectados`}
