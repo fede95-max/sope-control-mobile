@@ -118,6 +118,7 @@ export type Transaction = {
   amountMinor: number;
   currency: string;
   description: string | undefined;
+  detail: string | undefined;
   occurredOn: string;
   approvedOn: string | undefined;
   categoryId: string | undefined;
@@ -234,6 +235,7 @@ export type MassImportDraftItem = {
   amountMinor: number;
   currency: string;
   description: string | undefined;
+  detail: string | undefined;
   occurredOn: string;
   approvedOn: string;
   categoryId: string | undefined;

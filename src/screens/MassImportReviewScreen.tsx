@@ -56,6 +56,7 @@ function emptyManualItem(timezone: string, currency: string): MassImportDraftIte
     amountMinor: 0,
     currency,
     description: undefined,
+    detail: undefined,
     occurredOn: today,
     approvedOn: today,
     categoryId: undefined,
@@ -89,6 +90,7 @@ export function MassImportReviewScreen() {
   const [occurredOn, setOccurredOn] = useState("");
   const [approvedOn, setApprovedOn] = useState("");
   const [description, setDescription] = useState("");
+  const [detail, setDetail] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [installmentCount, setInstallmentCount] = useState("");
   const [query, setQuery] = useState("");
@@ -151,7 +153,7 @@ export function MassImportReviewScreen() {
       ? cards.find((card) => card.id === massImport.cardId)?.name ?? "Tarjeta"
       : accounts.find((account) => account.id === massImport?.accountId)?.name ?? "Cuenta";
   const formOpen = editingId !== undefined;
-  const dirty = useFormDirty(formOpen, [type, status, amount, currency, occurredOn, approvedOn, description, categoryId, installmentCount]);
+  const dirty = useFormDirty(formOpen, [type, status, amount, currency, occurredOn, approvedOn, description, detail, categoryId, installmentCount]);
   const filteredCategories = categories.filter((category) => {
     if (type === "INCOME") {
       return category.kind === "INCOME" || category.kind === "BOTH";
@@ -197,6 +199,7 @@ export function MassImportReviewScreen() {
       return matchesText(
         [
           item.description,
+          item.detail,
           typeLabel(item.type),
           formatAmountFromMinor(item.amountMinor),
           item.currency,
@@ -235,6 +238,7 @@ export function MassImportReviewScreen() {
     setOccurredOn(item.occurredOn);
     setApprovedOn(item.approvedOn);
     setDescription(item.description ?? "");
+    setDetail(item.detail ?? "");
     setCategoryId(item.categoryId ?? "");
     setInstallmentCount(item.installmentCount === undefined ? "" : String(item.installmentCount));
     setError(undefined);
@@ -263,6 +267,7 @@ export function MassImportReviewScreen() {
               occurredOn,
               approvedOn: approvedOn === "" ? occurredOn : approvedOn,
               description: description.trim() === "" ? undefined : description.trim(),
+              detail: detail.trim() === "" ? undefined : detail.trim(),
               categoryId: categoryId === "" ? undefined : categoryId,
               installmentCount: installmentCount.trim() === "" ? undefined : Number(installmentCount),
             }
@@ -352,6 +357,7 @@ export function MassImportReviewScreen() {
                   />
                 </Pressable>
               </View>
+              {item.detail === undefined || item.detail === "" ? null : <Text style={styles.meta}>{item.detail}</Text>}
               {category === undefined ? null : <CategoryChip color={category.color} name={category.name} />}
               {readonly ? null : (
                 <SelectField
@@ -474,6 +480,7 @@ export function MassImportReviewScreen() {
         <DateField label="Fecha de compra" onChange={setOccurredOn} timeZone={timezone} value={occurredOn} />
         <DateField label="Acreditación" onChange={setApprovedOn} timeZone={timezone} value={approvedOn} />
         <TextField editable={!readonly} label="Descripción" onChangeText={setDescription} value={description} />
+        <TextField editable={!readonly} label="Detalle" onChangeText={setDetail} value={detail} />
         <SelectField
           disabled={readonly}
           label="Categoría"

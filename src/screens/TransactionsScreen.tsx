@@ -62,6 +62,7 @@ export function TransactionsScreen() {
   const [occurredOn, setOccurredOn] = useState(currentCalendarDate(timezone));
   const [approvedOn, setApprovedOn] = useState(currentCalendarDate(timezone));
   const [description, setDescription] = useState("");
+  const [detail, setDetail] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [fromAccountId, setFromAccountId] = useState("");
@@ -143,6 +144,7 @@ export function TransactionsScreen() {
           resolveAccountLabel(transaction, accountName),
           resolveCardLabel(transaction, cardName),
           transaction.description,
+          transaction.detail,
         ],
         query,
       );
@@ -172,6 +174,7 @@ export function TransactionsScreen() {
     occurredOn,
     approvedOn,
     description,
+    detail,
     categoryId,
     accountId,
     fromAccountId,
@@ -198,6 +201,7 @@ export function TransactionsScreen() {
     setOccurredOn(currentCalendarDate(timezone));
     setApprovedOn(currentCalendarDate(timezone));
     setDescription("");
+    setDetail("");
     setCategoryId("");
     setAccountId("");
     setFromAccountId("");
@@ -221,6 +225,7 @@ export function TransactionsScreen() {
     setOccurredOn(transaction.occurredOn);
     setApprovedOn(transaction.approvedOn ?? (transaction.status === "APPROVED" ? transaction.occurredOn : ""));
     setDescription(transaction.description ?? "");
+    setDetail(transaction.detail ?? "");
     setCategoryId(transaction.categoryId ?? "");
     setAccountId(transaction.accountId ?? "");
     setFromAccountId(transaction.fromAccountId ?? "");
@@ -244,6 +249,11 @@ export function TransactionsScreen() {
       body.description = description.trim();
     } else if (editingId !== undefined) {
       body.description = null;
+    }
+    if (detail.trim() !== "") {
+      body.detail = detail.trim();
+    } else if (editingId !== undefined) {
+      body.detail = null;
     }
     if (type === "TRANSFER") {
       if (fromAccountId === "" || toAccountId === "") {
@@ -333,6 +343,9 @@ export function TransactionsScreen() {
                   subtitle={`${formatCalendarDate(listDate(transaction))} · ${typeLabel(transaction.type)}`}
                   title={transaction.description ?? typeLabel(transaction.type)}
                 />
+                {transaction.detail === undefined || transaction.detail === "" ? null : (
+                  <Text>{transaction.detail}</Text>
+                )}
                 {category === undefined ? null : <CategoryChip name={category.name} color={category.color} />}
                 {account === undefined || transaction.type === "TRANSFER" ? null : (
                   <ColoredChip name={account.name} color={account.color} />
@@ -432,6 +445,7 @@ export function TransactionsScreen() {
           <DateField label="Acreditación" onChange={setApprovedOn} timeZone={timezone} value={approvedOn} />
         ) : null}
         <TextField label="Descripción" onChangeText={setDescription} value={description} />
+        <TextField label="Detalle" onChangeText={setDetail} value={detail} />
         {editingId === undefined && type === "EXPENSE" ? (
           <TextField
             keyboardType="numeric"
