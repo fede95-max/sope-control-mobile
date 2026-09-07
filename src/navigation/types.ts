@@ -1,3 +1,8 @@
+export type RootStackParamList = {
+  Login: undefined;
+  Settings: undefined;
+};
+
 export type MainTabParamList = {
   Dashboard: undefined;
   Transactions: undefined;
@@ -8,6 +13,7 @@ export type MainTabParamList = {
 
 export type MoreStackParamList = {
   MoreMenu: undefined;
+  Settings: undefined;
   Categories: undefined;
   Budgets: undefined;
   Recurring: undefined;

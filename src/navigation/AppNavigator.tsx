@@ -2,6 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAppearance } from "../appearance/AppearanceContext";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { AccountsScreen } from "../screens/AccountsScreen";
@@ -17,18 +18,21 @@ import { MassImportReviewScreen } from "../screens/MassImportReviewScreen";
 import { MassImportsScreen } from "../screens/MassImportsScreen";
 import { MoreScreen } from "../screens/MoreScreen";
 import { RecurringScreen } from "../screens/RecurringScreen";
+import { SettingsScreen } from "../screens/SettingsScreen";
 import { TransactionsScreen } from "../screens/TransactionsScreen";
 import { UsersScreen } from "../screens/UsersScreen";
 import { colors, space } from "../theme";
-import type { MainTabParamList, MoreStackParamList } from "./types";
+import type { MainTabParamList, MoreStackParamList, RootStackParamList } from "./types";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const MoreStack = createNativeStackNavigator<MoreStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
 
 function MoreNavigator() {
   return (
     <MoreStack.Navigator screenOptions={{ headerShown: false }}>
       <MoreStack.Screen component={MoreScreen} name="MoreMenu" />
+      <MoreStack.Screen component={SettingsScreen} name="Settings" />
       <MoreStack.Screen component={CategoriesScreen} name="Categories" />
       <MoreStack.Screen component={BudgetsScreen} name="Budgets" />
       <MoreStack.Screen component={RecurringScreen} name="Recurring" />
@@ -106,19 +110,29 @@ function TabMark({ color, label }: { color: string; label: string }) {
   return <Text style={{ color, fontWeight: "700", fontSize: 16 }}>{label}</Text>;
 }
 
+function AuthNavigator() {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen component={LoginScreen} name="Login" />
+      <RootStack.Screen component={SettingsScreen} name="Settings" />
+    </RootStack.Navigator>
+  );
+}
+
 export function AppNavigator() {
   const auth = useAuth();
+  const appearance = useAppearance();
 
-  if (!auth.ready) {
+  if (!auth.ready || !appearance.ready) {
     return (
-      <View style={styles.boot}>
+      <View style={[styles.boot, { backgroundColor: appearance.backgroundColor }]}>
         <ActivityIndicator color={colors.teal} size="large" />
       </View>
     );
   }
 
   if (auth.token === undefined) {
-    return <LoginScreen />;
+    return <AuthNavigator />;
   }
 
   return <MainTabs key={auth.me?.user.householdId} />;
@@ -129,6 +143,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: colors.ink,
   },
 });

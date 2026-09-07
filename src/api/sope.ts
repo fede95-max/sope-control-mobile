@@ -344,6 +344,20 @@ export async function switchActiveHousehold(token: string, householdId: string):
   });
 }
 
+export async function registerDeviceToken(
+  token: string,
+  fcmToken: string,
+  platform: "android" | "ios",
+): Promise<void> {
+  await apiRequest({
+    path: "/me/device-token",
+    method: "PUT",
+    token,
+    body: { fcmToken, platform },
+    parseJson: () => undefined,
+  });
+}
+
 export async function listAccounts(token: string, includeInactive = false): Promise<Account[]> {
   return apiRequest({
     path: includeInactive ? "/accounts?includeInactive=true" : "/accounts",

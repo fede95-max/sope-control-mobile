@@ -1,3 +1,5 @@
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -12,12 +14,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiRequestError } from "../api/client";
+import { useAppearance } from "../appearance/AppearanceContext";
 import { useAuth } from "../auth/AuthContext";
 import { apiBaseUrl } from "../config";
+import type { RootStackParamList } from "../navigation/types";
 import { colors } from "../theme";
 
 export function LoginScreen() {
   const auth = useAuth();
+  const appearance = useAppearance();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -45,7 +51,7 @@ export function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: appearance.backgroundColor }]}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -100,6 +106,9 @@ export function LoginScreen() {
               </Text>
             </Pressable>
             <Text style={styles.hint}>API: {apiBaseUrl}</Text>
+            <Pressable onPress={() => navigation.navigate("Settings")}>
+              <Text style={styles.switch}>Personalizar fondo</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -110,7 +119,6 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.ink,
   },
   flex: {
     flex: 1,

@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ApiRequestError } from "../api/client";
+import { useAppearance } from "../appearance/AppearanceContext";
 import { colors, space } from "../theme";
 
 export function toErrorMessage(cause: unknown): string {
@@ -93,9 +94,10 @@ export function Screen({
 }) {
   const navigation = useNavigation();
   const canGoBack = navigation.canGoBack();
+  const { backgroundColor } = useAppearance();
 
   return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
+    <SafeAreaView style={[styles.screen, { backgroundColor }]} edges={["top"]}>
       <View style={styles.header}>
         {canGoBack ? (
           <Pressable onPress={() => navigation.goBack()} style={styles.back}>
@@ -147,6 +149,8 @@ export function FormSheet({
   onDelete?: (() => void) | undefined;
   children: ReactNode;
 }) {
+  const { backgroundColor } = useAppearance();
+
   function requestClose() {
     if (!dirty) {
       onClose();
@@ -160,7 +164,7 @@ export function FormSheet({
 
   return (
     <Modal animationType="slide" onRequestClose={requestClose} visible={visible}>
-      <SafeAreaView style={styles.sheet}>
+      <SafeAreaView style={[styles.sheet, { backgroundColor }]}>
         <View style={styles.sheetHeader}>
           <Pressable disabled={busy} onPress={requestClose}>
             <Text style={styles.sheetLink}>Cerrar</Text>
@@ -198,7 +202,6 @@ export function FormSheet({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.bg,
   },
   header: {
     paddingHorizontal: space.lg,
@@ -262,7 +265,6 @@ const styles = StyleSheet.create({
   },
   sheet: {
     flex: 1,
-    backgroundColor: colors.bg,
   },
   sheetHeader: {
     flexDirection: "row",

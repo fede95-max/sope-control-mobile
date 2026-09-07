@@ -16,6 +16,7 @@
     },
     "android": {
       "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -32,7 +33,17 @@
     "plugins": [
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-document-picker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app necesita acceso a tus fotos para importar documentos.",
+          "cameraPermission": "La app necesita acceso a la cámara para capturar documentos."
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ]
   }
 }
