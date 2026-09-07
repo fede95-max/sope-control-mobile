@@ -166,11 +166,13 @@ export function FormSheet({
     <Modal animationType="slide" onRequestClose={requestClose} visible={visible}>
       <SafeAreaView style={[styles.sheet, { backgroundColor }]}>
         <View style={styles.sheetHeader}>
-          <Pressable disabled={busy} onPress={requestClose}>
+          <Pressable disabled={busy} onPress={requestClose} style={styles.sheetHeaderSide}>
             <Text style={styles.sheetLink}>Cerrar</Text>
           </Pressable>
-          <Text style={styles.sheetTitle}>{title}</Text>
-          <Pressable disabled={busy} onPress={onSubmit}>
+          <Text ellipsizeMode="tail" numberOfLines={1} style={styles.sheetTitle}>
+            {title}
+          </Text>
+          <Pressable disabled={busy} onPress={onSubmit} style={styles.sheetHeaderSide}>
             {busy ? <ActivityIndicator color={colors.teal} /> : <Text style={styles.sheetLinkStrong}>{submitLabel}</Text>}
           </Pressable>
         </View>
@@ -276,10 +278,16 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.line,
     backgroundColor: colors.surface,
   },
+  sheetHeaderSide: {
+    flexShrink: 0,
+  },
   sheetTitle: {
+    flex: 1,
     fontSize: 16,
     fontWeight: "700",
     color: colors.ink,
+    textAlign: "center",
+    marginHorizontal: space.xs,
   },
   sheetLink: {
     color: colors.muted,

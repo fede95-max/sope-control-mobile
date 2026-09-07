@@ -15,20 +15,26 @@ import {
 import { useEffect } from "react";
 
 function NotificationBootstrap() {
-  const { token } = useAuth();
+  const { ready, token } = useAuth();
 
   useEffect(() => {
+    if (!ready) {
+      return;
+    }
     void initializeNotifications(token);
-  }, [token]);
+  }, [ready, token]);
 
   useEffect(() => {
+    if (!ready) {
+      return () => {};
+    }
     return setupNotificationListeners(
       {
         onForegroundMessage: showForegroundNotificationAlert,
       },
       token,
     );
-  }, [token]);
+  }, [ready, token]);
 
   return null;
 }

@@ -18,6 +18,7 @@ import { useAppearance } from "../appearance/AppearanceContext";
 import { useAuth } from "../auth/AuthContext";
 import { apiBaseUrl } from "../config";
 import type { RootStackParamList } from "../navigation/types";
+import { sanitizeAuthText, sanitizePassword } from "../utils/sanitizeAuth";
 import { colors } from "../theme";
 
 export function LoginScreen() {
@@ -35,9 +36,9 @@ export function LoginScreen() {
     setError(undefined);
     try {
       if (mode === "signup") {
-        await auth.signup(email.trim(), password);
+        await auth.signup(sanitizeAuthText(email), sanitizePassword(password));
       } else {
-        await auth.login(email.trim(), password);
+        await auth.login(sanitizeAuthText(email), sanitizePassword(password));
       }
     } catch (cause: unknown) {
       if (cause instanceof ApiRequestError) {

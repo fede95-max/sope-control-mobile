@@ -1,4 +1,5 @@
 import { Alert, PermissionsAndroid, Platform } from "react-native";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { registerDeviceToken } from "../api/sope";
 
 type RemoteMessage = {
@@ -14,7 +15,14 @@ export type NotificationHandlers = {
   onNotificationOpened?: (message: RemoteMessage) => void;
 };
 
+function isPushNotificationsSupported(): boolean {
+  return Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
+}
+
 async function loadMessagingModule() {
+  if (!isPushNotificationsSupported()) {
+    throw new Error("Push notifications require a development build (not Expo Go)");
+  }
   return import("@react-native-firebase/messaging");
 }
 
@@ -50,6 +58,13 @@ export async function getFcmToken(): Promise<string | undefined> {
 }
 
 export async function initializeNotifications(accessToken?: string): Promise<string | undefined> {
+  if (!isPushNotificationsSupported()) {
+    console.log(
+      "Las notificaciones push requieren un development build. Ejecuta: npx expo run:android",
+    );
+    return undefined;
+  }
+
   const granted = await requestNotificationPermission();
   if (!granted) {
     console.log("Permiso de notificaciones rechazado");
@@ -66,6 +81,7 @@ export async function initializeNotifications(accessToken?: string): Promise<str
   if (accessToken !== undefined) {
     try {
       await registerDeviceToken(accessToken, token, Platform.OS === "ios" ? "ios" : "android");
+      console.log("Token FCM registrado en el servidor");
     } catch (error) {
       console.log("No se pudo registrar el token en el servidor:", error);
     }
@@ -78,6 +94,10 @@ export function setupNotificationListeners(
   handlers: NotificationHandlers = {},
   accessToken?: string,
 ): () => void {
+  if (!isPushNotificationsSupported()) {
+    return () => {};
+  }
+
   let unsubscribe = () => {};
 
   void loadMessagingModule()
