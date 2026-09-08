@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   createCard,
@@ -11,6 +11,7 @@ import {
 import type { CardOverview } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
+import { useAsyncReload } from "../hooks/useAsyncReload";
 import { cardKindLabel } from "../labels";
 import { currentYearMonth, formatAmountFromMinor, formatCalendarDate } from "../money";
 import { colors, space } from "../theme";
@@ -77,24 +78,35 @@ export function CardsScreen() {
   const [kindFilter, setKindFilter] = useState("");
   const [sortId, setSortId] = useState("name-az");
 
-  function reload() {
+  function reload(isStale: () => boolean = () => false) {
     if (token === undefined) {
       return;
     }
     setBusy(true);
     void Promise.all([listCardOverview(token, viewMonth), listAccounts(token)])
       .then(([nextCards, nextAccounts]) => {
+        if (isStale()) {
+          return;
+        }
         setCards(nextCards);
         setAccounts(nextAccounts);
         setError(undefined);
       })
-      .catch((cause: unknown) => setError(toErrorMessage(cause)))
-      .finally(() => setBusy(false));
+      .catch((cause: unknown) => {
+        if (isStale()) {
+          return;
+        }
+        setError(toErrorMessage(cause));
+      })
+      .finally(() => {
+        if (isStale()) {
+          return;
+        }
+        setBusy(false);
+      });
   }
 
-  useEffect(() => {
-    reload();
-  }, [token, viewMonth]);
+  useAsyncReload((isStale) => reload(isStale), [token, viewMonth]);
 
   const missingPeriod = cards.filter((card) => card.kind === "CREDIT" && card.period === undefined);
   const filteredCards = useMemo(() => {

@@ -144,6 +144,20 @@ export function shiftYearMonth(yearMonth: string, delta: number): string {
   return `${year}-${month}`;
 }
 
+export function toYearMonth(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+export function yearMonthToDate(yearMonth: string): Date {
+  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (match === null || match[1] === undefined || match[2] === undefined) {
+    return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  }
+  return new Date(Number(match[1]), Number(match[2]) - 1, 1);
+}
+
 export function parseCalendarDate(value: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (match === null || match[1] === undefined || match[2] === undefined || match[3] === undefined) {

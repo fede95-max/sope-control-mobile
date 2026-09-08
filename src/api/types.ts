@@ -129,6 +129,7 @@ export type Transaction = {
   statementYearMonth: string | undefined;
   installmentCount: number | undefined;
   installmentNumber: number | undefined;
+  installmentGroupId: string | undefined;
   massImportId: string | undefined;
 } & AuditFields;
 

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text } from "react-native";
 import { getDashboard, listBudgets, listCategories, shareMonthExcel } from "../api/sope";
 import type { Budget, Category, Dashboard } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
+import { useAsyncReload } from "../hooks/useAsyncReload";
 import { currentYearMonth, formatAmountFromMinor } from "../money";
 import { colors, space } from "../theme";
 import { CategoryChip } from "../ui/CategoryChip";
@@ -28,7 +29,7 @@ export function DashboardScreen() {
   const [currencyFilter, setCurrencyFilter] = useState("");
   const [sortId, setSortId] = useState("amount-desc");
 
-  function reload() {
+  function reload(isStale: () => boolean = () => false) {
     if (token === undefined) {
       return;
     }
@@ -39,18 +40,29 @@ export function DashboardScreen() {
       canReadBudgets ? listBudgets(token, month) : Promise.resolve([]),
     ])
       .then(([nextDashboard, nextCategories, nextBudgets]) => {
+        if (isStale()) {
+          return;
+        }
         setDashboard(nextDashboard);
         setCategories(nextCategories);
         setBudgets(nextBudgets);
         setError(undefined);
       })
-      .catch((cause: unknown) => setError(toErrorMessage(cause)))
-      .finally(() => setBusy(false));
+      .catch((cause: unknown) => {
+        if (isStale()) {
+          return;
+        }
+        setError(toErrorMessage(cause));
+      })
+      .finally(() => {
+        if (isStale()) {
+          return;
+        }
+        setBusy(false);
+      });
   }
 
-  useEffect(() => {
-    reload();
-  }, [token, month, canReadBudgets]);
+  useAsyncReload((isStale) => reload(isStale), [token, month, canReadBudgets]);
 
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const budgetByKey = new Map(budgets.map((budget) => [`${budget.categoryId}#${budget.currency}`, budget]));
