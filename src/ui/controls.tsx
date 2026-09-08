@@ -1,20 +1,82 @@
-import { type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { formatYearMonth, shiftYearMonth } from "../money";
+import { type ReactNode, useState } from "react";
+import { Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import DateTimePicker, { type DateTimePickerChangeEvent } from "@react-native-community/datetimepicker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { currentYearMonth, formatYearMonth, shiftYearMonth, toYearMonth, yearMonthToDate } from "../money";
 import { colors, space } from "../theme";
 import { SelectField } from "./fields";
 
-export function MonthStepper({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+export function MonthStepper({
+  value,
+  onChange,
+  timeZone,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  timeZone?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const insets = useSafeAreaInsets();
+  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const pickerDate = yearMonthToDate(value);
+
+  function applyDate(next: Date) {
+    onChange(toYearMonth(next));
+  }
+
+  function onValueChange(_event: DateTimePickerChangeEvent, next: Date) {
+    applyDate(next);
+    if (Platform.OS === "android") {
+      setOpen(false);
+    }
+  }
+
   return (
-    <View style={styles.stepper}>
-      <Pressable onPress={() => onChange(shiftYearMonth(value, -1))} style={styles.stepButton}>
-        <Text style={styles.stepText}>‹</Text>
-      </Pressable>
-      <Text style={styles.monthLabel}>{formatYearMonth(value)}</Text>
-      <Pressable onPress={() => onChange(shiftYearMonth(value, 1))} style={styles.stepButton}>
-        <Text style={styles.stepText}>›</Text>
-      </Pressable>
-    </View>
+    <>
+      <View style={styles.stepper}>
+        <Pressable onPress={() => onChange(shiftYearMonth(value, -1))} style={styles.stepButton}>
+          <Text style={styles.stepText}>‹</Text>
+        </Pressable>
+        <Pressable onPress={() => setOpen(true)} style={styles.monthButton}>
+          <Text style={styles.monthLabel}>{formatYearMonth(value)}</Text>
+        </Pressable>
+        <Pressable onPress={() => onChange(shiftYearMonth(value, 1))} style={styles.stepButton}>
+          <Text style={styles.stepText}>›</Text>
+        </Pressable>
+      </View>
+      {open && Platform.OS === "android" ? (
+        <DateTimePicker
+          display="default"
+          mode="date"
+          onDismiss={() => setOpen(false)}
+          onValueChange={onValueChange}
+          value={pickerDate}
+        />
+      ) : null}
+      {Platform.OS === "ios" ? (
+        <Modal animationType="slide" onRequestClose={() => setOpen(false)} transparent visible={open}>
+          <Pressable onPress={() => setOpen(false)} style={styles.overlay}>
+            <View style={[styles.iosPicker, { paddingBottom: Math.max(insets.bottom, space.lg) }]}>
+              <View style={styles.pickerActions}>
+                <Pressable
+                  onPress={() => {
+                    onChange(currentYearMonth(zone));
+                    setOpen(false);
+                  }}
+                  style={styles.todayButton}
+                >
+                  <Text style={styles.todayText}>Hoy</Text>
+                </Pressable>
+                <Pressable onPress={() => setOpen(false)}>
+                  <Text style={styles.done}>Listo</Text>
+                </Pressable>
+              </View>
+              <DateTimePicker display="spinner" mode="date" onValueChange={onValueChange} value={pickerDate} />
+            </View>
+          </Pressable>
+        </Modal>
+      ) : null}
+    </>
   );
 }
 
@@ -129,6 +191,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  monthButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
   stepText: {
     fontSize: 22,
     color: colors.teal,
@@ -140,6 +207,37 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
     fontWeight: "600",
     color: colors.ink,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: "flex-end",
+  },
+  iosPicker: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  pickerActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+  },
+  todayButton: {
+    paddingVertical: 4,
+    paddingRight: 12,
+  },
+  todayText: {
+    color: colors.teal,
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  done: {
+    color: colors.teal,
+    fontWeight: "700",
+    fontSize: 16,
   },
   search: {
     backgroundColor: colors.surface,

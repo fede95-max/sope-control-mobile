@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { createBudget, deleteBudget, listBudgets, listCategories, updateBudget } from "../api/sope";
 import type { Budget, Category } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
+import { useAsyncReload } from "../hooks/useAsyncReload";
 import { currentYearMonth, formatAmountFromMinor, parseAmountToMinor } from "../money";
 import { colors } from "../theme";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
@@ -43,24 +44,35 @@ export function BudgetsScreen() {
   const [currencyFilter, setCurrencyFilter] = useState("");
   const [sortId, setSortId] = useState("category-az");
 
-  function reload() {
+  function reload(isStale: () => boolean = () => false) {
     if (token === undefined) {
       return;
     }
     setBusy(true);
     void Promise.all([listBudgets(token, month), listCategories(token)])
       .then(([nextBudgets, nextCategories]) => {
+        if (isStale()) {
+          return;
+        }
         setBudgets(nextBudgets);
         setCategories(nextCategories);
         setError(undefined);
       })
-      .catch((cause: unknown) => setError(toErrorMessage(cause)))
-      .finally(() => setBusy(false));
+      .catch((cause: unknown) => {
+        if (isStale()) {
+          return;
+        }
+        setError(toErrorMessage(cause));
+      })
+      .finally(() => {
+        if (isStale()) {
+          return;
+        }
+        setBusy(false);
+      });
   }
 
-  useEffect(() => {
-    reload();
-  }, [token, month]);
+  useAsyncReload((isStale) => reload(isStale), [token, month]);
 
   const categoryName = new Map(categories.map((category) => [category.id, category.name]));
   const expenseCategories = categories.filter((category) => category.kind !== "INCOME");

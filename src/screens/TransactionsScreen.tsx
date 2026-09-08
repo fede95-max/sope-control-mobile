@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RefreshControl, ScrollView, Text } from "react-native";
 import {
   createTransaction,
@@ -12,6 +12,7 @@ import {
 import type { Account, Card, Category, Transaction, TransactionStatus } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
+import { useAsyncReload } from "../hooks/useAsyncReload";
 import { resolveAccountLabel, resolveCardLabel, statusLabel, typeLabel } from "../labels";
 import {
   currentCalendarDate,
@@ -33,6 +34,7 @@ import {
   Screen,
   StatusPill,
   confirmAction,
+  confirmInstallmentSeriesScope,
   matchesText,
   screenContentStyle,
   toErrorMessage,
@@ -42,6 +44,25 @@ import { compareNumber, compareText, useSortedItems, type SortOption } from "../
 
 function listDate(transaction: Transaction): string {
   return transaction.approvedOn ?? transaction.occurredOn;
+}
+
+function installmentSeriesFieldsChanged(
+  transaction: Transaction,
+  body: Record<string, unknown>,
+): boolean {
+  if (transaction.installmentCount === undefined || transaction.installmentNumber === undefined) {
+    return false;
+  }
+  const nextAmount = body.amountMinor;
+  const amountChanged = typeof nextAmount === "number" && nextAmount !== transaction.amountMinor;
+  const nextDescription =
+    body.description === null || body.description === undefined ? "" : String(body.description);
+  const nextDetail = body.detail === null || body.detail === undefined ? "" : String(body.detail);
+  return (
+    amountChanged ||
+    nextDescription !== (transaction.description ?? "") ||
+    nextDetail !== (transaction.detail ?? "")
+  );
 }
 
 export function TransactionsScreen() {
@@ -80,7 +101,7 @@ export function TransactionsScreen() {
   const [cardFilter, setCardFilter] = useState("");
   const [sortId, setSortId] = useState("date-desc");
 
-  function reload() {
+  function reload(isStale: () => boolean = () => false) {
     if (token === undefined) {
       return;
     }
@@ -92,19 +113,30 @@ export function TransactionsScreen() {
       listCards(token),
     ])
       .then(([nextTransactions, nextAccounts, nextCategories, nextCards]) => {
+        if (isStale()) {
+          return;
+        }
         setTransactions(nextTransactions);
         setAccounts(nextAccounts);
         setCategories(nextCategories);
         setCards(nextCards);
         setError(undefined);
       })
-      .catch((cause: unknown) => setError(toErrorMessage(cause)))
-      .finally(() => setBusy(false));
+      .catch((cause: unknown) => {
+        if (isStale()) {
+          return;
+        }
+        setError(toErrorMessage(cause));
+      })
+      .finally(() => {
+        if (isStale()) {
+          return;
+        }
+        setBusy(false);
+      });
   }
 
-  useEffect(() => {
-    reload();
-  }, [token, month]);
+  useAsyncReload((isStale) => reload(isStale), [token, month]);
 
   const categoryById = new Map(categories.map((category) => [category.id, category]));
   const accountById = new Map(accounts.map((account) => [account.id, account]));
@@ -386,22 +418,48 @@ export function TransactionsScreen() {
           if (token === undefined) {
             return;
           }
-          setBusy(true);
           try {
             const body = buildBody();
-            const request =
-              editingId === undefined
-                ? createTransaction(token, { type, ...body })
-                : updateTransaction(token, editingId, body);
-            void request
-              .then(() => listTransactions(token, month))
-              .then((nextTransactions) => {
-                setTransactions(nextTransactions);
-                resetForm();
-                setError(undefined);
-              })
-              .catch((cause: unknown) => setError(toErrorMessage(cause)))
-              .finally(() => setBusy(false));
+            const persist = (seriesScope?: "single" | "future") => {
+              const payload =
+                seriesScope === undefined ? body : { ...body, seriesScope };
+              setBusy(true);
+              const request =
+                editingId === undefined
+                  ? createTransaction(token, { type, ...payload })
+                  : updateTransaction(token, editingId, payload);
+              void request
+                .then(() => listTransactions(token, month))
+                .then((nextTransactions) => {
+                  setTransactions(nextTransactions);
+                  resetForm();
+                  setError(undefined);
+                })
+                .catch((cause: unknown) => setError(toErrorMessage(cause)))
+                .finally(() => setBusy(false));
+            };
+
+            if (
+              editingId !== undefined &&
+              editing !== undefined &&
+              installmentSeriesFieldsChanged(editing, body)
+            ) {
+              const installmentNumber = editing.installmentNumber;
+              const installmentCount = editing.installmentCount;
+              if (installmentNumber === undefined || installmentCount === undefined) {
+                persist();
+                return;
+              }
+              void confirmInstallmentSeriesScope(installmentNumber, installmentCount).then((scope) => {
+                if (scope === undefined) {
+                  return;
+                }
+                persist(scope);
+              });
+              return;
+            }
+
+            persist();
           } catch (cause: unknown) {
             setError(toErrorMessage(cause));
             setBusy(false);

@@ -66,6 +66,23 @@ export function confirmAction(title: string, message: string, confirmLabel: stri
   });
 }
 
+export function confirmInstallmentSeriesScope(
+  installmentNumber: number,
+  installmentCount: number,
+): Promise<"single" | "future" | undefined> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      "Editar cuotas",
+      `Cuota ${installmentNumber} de ${installmentCount}. ¿Querés cambiar descripción, detalle o monto solo en este movimiento o también en las cuotas ${installmentNumber} en adelante?`,
+      [
+        { text: "Cancelar", style: "cancel", onPress: () => resolve(undefined) },
+        { text: "Solo este", onPress: () => resolve("single") },
+        { text: "En serie", onPress: () => resolve("future") },
+      ],
+    );
+  });
+}
+
 export function ErrorBanner({ error }: { error: string | undefined }) {
   if (error === undefined) {
     return null;

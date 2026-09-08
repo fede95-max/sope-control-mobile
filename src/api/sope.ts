@@ -203,6 +203,7 @@ function parseTransaction(value: unknown): Transaction {
     statementYearMonth: readNullableString(item, "statementYearMonth"),
     installmentCount: readNullableNumber(item, "installmentCount"),
     installmentNumber: readNullableNumber(item, "installmentNumber"),
+    installmentGroupId: readNullableString(item, "installmentGroupId"),
     massImportId: readNullableString(item, "massImportId"),
     ...parseAudit(item),
   };
