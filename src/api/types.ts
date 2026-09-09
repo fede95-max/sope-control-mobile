@@ -147,11 +147,14 @@ export type Card = {
   color: string;
 } & AuditFields;
 
+export type CardPaymentStatus = "PENDING" | "PARTIAL" | "PAID";
+
 export type CardPeriod = {
   cardId: string;
   yearMonth: string;
   closingOn: string;
   dueOn: string;
+  markedPaidAt: string | undefined;
 };
 
 export type CardOverview = Card & {
@@ -160,6 +163,17 @@ export type CardOverview = Card & {
   periodTo: string | undefined;
   dueOn: string | undefined;
   totalsByCurrency: Array<{ currency: string; purchaseTotalMinor: number }>;
+  paymentTotalMinor: number;
+  balanceMinor: number;
+  paymentStatus: CardPaymentStatus;
+};
+
+export type CardPaymentSummary = {
+  month: string;
+  purchaseTotalMinor: number;
+  paymentTotalMinor: number;
+  balanceMinor: number;
+  paymentStatus: CardPaymentStatus;
 };
 
 export type Recurring = {

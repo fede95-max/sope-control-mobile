@@ -24,6 +24,8 @@ import type {
   Budget,
   Card,
   CardOverview,
+  CardPaymentStatus,
+  CardPaymentSummary,
   CardPeriod,
   CardStatement,
   Category,
@@ -237,6 +239,25 @@ function parseCardPeriod(value: unknown): CardPeriod | undefined {
     yearMonth: readString(item, "yearMonth"),
     closingOn: readString(item, "closingOn"),
     dueOn: readString(item, "dueOn"),
+    markedPaidAt: readNullableString(item, "markedPaidAt"),
+  };
+}
+
+function parsePaymentStatus(value: unknown): CardPaymentStatus {
+  if (value === "PENDING" || value === "PARTIAL" || value === "PAID") {
+    return value;
+  }
+  return "PENDING";
+}
+
+function parsePaymentSummary(value: unknown): CardPaymentSummary {
+  const item = requireRecord(value, "payment");
+  return {
+    month: readString(item, "month"),
+    purchaseTotalMinor: readNumber(item, "purchaseTotalMinor"),
+    paymentTotalMinor: readNumber(item, "paymentTotalMinor"),
+    balanceMinor: readNumber(item, "balanceMinor"),
+    paymentStatus: parsePaymentStatus(item.paymentStatus),
   };
 }
 
@@ -269,6 +290,9 @@ function parseCardOverview(value: unknown): CardOverview {
     periodTo: readNullableString(item, "periodTo"),
     dueOn: readNullableString(item, "dueOn"),
     totalsByCurrency: parseTotalsByCurrency(item.totalsByCurrency),
+    paymentTotalMinor: typeof item.paymentTotalMinor === "number" ? readNumber(item, "paymentTotalMinor") : 0,
+    balanceMinor: typeof item.balanceMinor === "number" ? readNumber(item, "balanceMinor") : 0,
+    paymentStatus: parsePaymentStatus(item.paymentStatus),
   };
 }
 
@@ -558,6 +582,49 @@ export async function upsertCardPeriod(
     method: "PUT",
     token,
     body,
+    parseJson: (payload) => {
+      const period = parseCardPeriod(requireRecord(payload, "period").period);
+      if (period === undefined) {
+        throw new Error("Invalid period in API response");
+      }
+      return period;
+    },
+  });
+}
+
+export async function getCardPeriod(
+  token: string,
+  cardId: string,
+  month: string,
+): Promise<CardPeriod | undefined> {
+  return apiRequest({
+    path: `/cards/${cardId}/periods/${month}`,
+    token,
+    parseJson: (payload) => parseCardPeriod(requireRecord(payload, "payload").period),
+  });
+}
+
+export async function getCardPeriodPayments(
+  token: string,
+  cardId: string,
+  month: string,
+): Promise<CardPaymentSummary> {
+  return apiRequest({
+    path: `/cards/${cardId}/periods/${month}/payments`,
+    token,
+    parseJson: (payload) => parsePaymentSummary(requireRecord(payload, "payload").payment),
+  });
+}
+
+export async function markCardPeriodPaid(
+  token: string,
+  cardId: string,
+  month: string,
+): Promise<CardPeriod> {
+  return apiRequest({
+    path: `/cards/${cardId}/periods/${month}/mark-paid`,
+    method: "PATCH",
+    token,
     parseJson: (payload) => {
       const period = parseCardPeriod(requireRecord(payload, "period").period);
       if (period === undefined) {
