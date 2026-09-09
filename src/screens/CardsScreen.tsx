@@ -1,24 +1,35 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   createCard,
+  createTransaction,
   deleteCard,
+  getCardPeriod,
+  getCardPeriodPayments,
   listAccounts,
   listCardOverview,
+  listCategories,
+  markCardPeriodPaid,
   updateCard,
   upsertCardPeriod,
 } from "../api/sope";
-import type { CardOverview } from "../api/types";
+import type { Account, CardOverview, CardPaymentStatus, CardPaymentSummary, Category, TransactionStatus } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import { useAsyncReload } from "../hooks/useAsyncReload";
 import { cardKindLabel } from "../labels";
-import { currentYearMonth, formatAmountFromMinor, formatCalendarDate } from "../money";
+import {
+  currentCalendarDate,
+  currentYearMonth,
+  formatAmountFromMinor,
+  formatCalendarDate,
+  parseAmountToMinor,
+} from "../money";
 import { colors, space } from "../theme";
 import { AuditFooter } from "../ui/AuditFooter";
 import { CATEGORY_COLOR_PRESETS, ColoredChip } from "../ui/CategoryChip";
 import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
-import { DateField, SelectField, TextField } from "../ui/fields";
+import { AmountField, DateField, SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
 import {
   EmptyState,
@@ -49,6 +60,16 @@ function currencyAmount(
   return formatAmountFromMinor(currencyMinor(totals, currency));
 }
 
+function paymentStatusLabel(status: CardPaymentStatus): string {
+  if (status === "PAID") {
+    return "Pagado";
+  }
+  if (status === "PARTIAL") {
+    return "Parcial";
+  }
+  return "Pendiente";
+}
+
 export function CardsScreen() {
   const auth = useAuth();
   const { can } = usePermissions();
@@ -57,11 +78,17 @@ export function CardsScreen() {
   const timezone = auth.me?.user.timezone ?? "America/Argentina/Buenos_Aires";
   const [viewMonth, setViewMonth] = useState(currentYearMonth(timezone));
   const [cards, setCards] = useState<CardOverview[]>([]);
-  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [periodOpen, setPeriodOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [expandedCardId, setExpandedCardId] = useState<string | undefined>(undefined);
+  const [paymentSummary, setPaymentSummary] = useState<CardPaymentSummary | undefined>(undefined);
+  const [paymentSummaryBusy, setPaymentSummaryBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [periodCardId, setPeriodCardId] = useState<string | undefined>(undefined);
+  const [paymentCardId, setPaymentCardId] = useState<string | undefined>(undefined);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("DEBIT");
   const [brand, setBrand] = useState("VISA");
@@ -72,6 +99,14 @@ export function CardsScreen() {
   const [closingOn, setClosingOn] = useState("");
   const [dueOn, setDueOn] = useState("");
   const [color, setColor] = useState(DEFAULT_CARD_COLOR);
+  const [payAccountId, setPayAccountId] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payOccurredOn, setPayOccurredOn] = useState("");
+  const [payApprovedOn, setPayApprovedOn] = useState("");
+  const [payStatus, setPayStatus] = useState<TransactionStatus>("APPROVED");
+  const [payDescription, setPayDescription] = useState("");
+  const [payDetail, setPayDetail] = useState("");
+  const [payConfirmBeforeClose, setPayConfirmBeforeClose] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [query, setQuery] = useState("");
@@ -83,13 +118,16 @@ export function CardsScreen() {
       return;
     }
     setBusy(true);
-    void Promise.all([listCardOverview(token, viewMonth), listAccounts(token)])
-      .then(([nextCards, nextAccounts]) => {
+    void Promise.all([listCardOverview(token, viewMonth), listAccounts(token), listCategories(token)])
+      .then(([nextCards, nextAccounts, nextCategories]) => {
         if (isStale()) {
           return;
         }
         setCards(nextCards);
         setAccounts(nextAccounts);
+        setCategories(nextCategories);
+        setPaymentSummary(undefined);
+        setExpandedCardId(undefined);
         setError(undefined);
       })
       .catch((cause: unknown) => {
@@ -107,6 +145,36 @@ export function CardsScreen() {
   }
 
   useAsyncReload((isStale) => reload(isStale), [token, viewMonth]);
+
+  const periodFetchCardId = periodOpen
+    ? periodCardId
+    : formOpen && kind === "CREDIT" && editingId !== undefined
+      ? editingId
+      : undefined;
+
+  useEffect(() => {
+    if (token === undefined || periodFetchCardId === undefined || periodMonth === "") {
+      return;
+    }
+    let cancelled = false;
+    void getCardPeriod(token, periodFetchCardId, periodMonth)
+      .then((period) => {
+        if (cancelled) {
+          return;
+        }
+        setClosingOn(period?.closingOn ?? "");
+        setDueOn(period?.dueOn ?? "");
+      })
+      .catch((cause: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setError(toErrorMessage(cause));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, periodFetchCardId, periodMonth]);
 
   const missingPeriod = cards.filter((card) => card.kind === "CREDIT" && card.period === undefined);
   const filteredCards = useMemo(() => {
@@ -136,6 +204,16 @@ export function CardsScreen() {
   const sortedCards = useSortedItems(filteredCards, sortId, sortOptions);
   const dirty = useFormDirty(formOpen, [name, kind, brand, last4, accountId, currency, periodMonth, closingOn, dueOn, color]);
   const periodDirty = useFormDirty(periodOpen, [periodMonth, closingOn, dueOn]);
+  const paymentDirty = useFormDirty(paymentOpen, [
+    payAccountId,
+    payAmount,
+    payOccurredOn,
+    payApprovedOn,
+    payStatus,
+    payDescription,
+    payDetail,
+    payConfirmBeforeClose,
+  ]);
 
   function closeForm() {
     setFormOpen(false);
@@ -158,6 +236,44 @@ export function CardsScreen() {
     setClosingOn("");
     setDueOn("");
     setPeriodMonth(viewMonth);
+  }
+
+  function closePayment() {
+    setPaymentOpen(false);
+    setPaymentCardId(undefined);
+    setPayAccountId("");
+    setPayAmount("");
+    setPayOccurredOn("");
+    setPayApprovedOn("");
+    setPayStatus("APPROVED");
+    setPayDescription("");
+    setPayDetail("");
+    setPayConfirmBeforeClose(false);
+  }
+
+  function loadPaymentSummary(cardId: string) {
+    if (token === undefined) {
+      return;
+    }
+    setPaymentSummaryBusy(true);
+    void getCardPeriodPayments(token, cardId, viewMonth)
+      .then((summary) => {
+        setPaymentSummary(summary);
+        setError(undefined);
+      })
+      .catch((cause: unknown) => setError(toErrorMessage(cause)))
+      .finally(() => setPaymentSummaryBusy(false));
+  }
+
+  function togglePayments(card: CardOverview) {
+    if (expandedCardId === card.id) {
+      setExpandedCardId(undefined);
+      setPaymentSummary(undefined);
+      return;
+    }
+    setExpandedCardId(card.id);
+    setPaymentSummary(undefined);
+    loadPaymentSummary(card.id);
   }
 
   function openCreate() {
@@ -192,7 +308,54 @@ export function CardsScreen() {
     setError(undefined);
   }
 
+  function openPayment(card: CardOverview) {
+    const remaining = paymentSummary?.balanceMinor ?? 0;
+    setPaymentCardId(card.id);
+    setPayAccountId("");
+    setPayAmount(remaining > 0 ? formatAmountFromMinor(remaining) : "");
+    setPayOccurredOn(currentCalendarDate(timezone));
+    setPayApprovedOn(currentCalendarDate(timezone));
+    setPayStatus("APPROVED");
+    setPayDescription("");
+    setPayDetail("");
+    setPayConfirmBeforeClose(false);
+    setPaymentOpen(true);
+    setError(undefined);
+  }
+
+  function markPaid(card: CardOverview) {
+    if (token === undefined) {
+      return;
+    }
+    const remaining = paymentSummary?.balanceMinor ?? 0;
+    const message =
+      remaining > 0
+        ? `Todavía hay un saldo de ${formatAmountFromMinor(remaining)} ${card.currency}. ¿Marcar el periodo como pagado igual?`
+        : "¿Marcar este periodo como pagado?";
+    void confirmAction("Marcar como pagado", message, "Marcar").then((ok) => {
+      if (!ok || token === undefined) {
+        return;
+      }
+      setBusy(true);
+      void markCardPeriodPaid(token, card.id, viewMonth)
+        .then(() => {
+          loadPaymentSummary(card.id);
+          setError(undefined);
+        })
+        .catch((cause: unknown) => setError(toErrorMessage(cause)))
+        .finally(() => setBusy(false));
+    });
+  }
+
   const periodCard = cards.find((card) => card.id === periodCardId);
+  const paymentCard = cards.find((card) => card.id === paymentCardId);
+  const statementPaymentCategory = categories.find((category) => category.seedCode === "CARD_STATEMENT_PAYMENT");
+  const today = currentCalendarDate(timezone);
+  const paymentNeedsCloseConfirm =
+    paymentCard?.period !== undefined && today < paymentCard.period.closingOn;
+  const paymentAccounts = accounts.filter(
+    (account) => paymentCard === undefined || account.currency === paymentCard.currency,
+  );
 
   return (
     <Screen title="Tarjetas" actions={can("cards:write") ? <GhostButton label="Nueva" onPress={openCreate} /> : undefined}>
@@ -219,11 +382,13 @@ export function CardsScreen() {
           <EmptyState text="Todavía no hay tarjetas." />
         ) : (
           sortedCards.map((card) => (
-            <Card key={card.id} onPress={() => startEdit(card)}>
-              <Row
-                subtitle={`${cardKindLabel(card.kind)} · ${card.brand} · ${card.last4}`}
-                title={<ColoredChip name={card.name} color={card.color} />}
-              />
+            <Card key={card.id}>
+              <Pressable onPress={() => startEdit(card)}>
+                <Row
+                  subtitle={`${cardKindLabel(card.kind)} · ${card.brand} · ${card.last4}`}
+                  title={<ColoredChip name={card.name} color={card.color} />}
+                />
+              </Pressable>
               {card.kind === "CREDIT" ? (
                 <View style={styles.totals}>
                   <Text style={styles.meta}>ARS {currencyAmount(card.totalsByCurrency, "ARS")}</Text>
@@ -234,7 +399,47 @@ export function CardsScreen() {
                   <Text style={styles.meta}>
                     Vence {card.dueOn === undefined ? "sin cargar" : formatCalendarDate(card.dueOn)}
                   </Text>
-                  <GhostButton label="Periodo" onPress={() => openPeriod(card)} />
+                  <View style={styles.actions}>
+                    <GhostButton label="Periodo" onPress={() => openPeriod(card)} />
+                    {card.period !== undefined ? (
+                      <GhostButton
+                        label={expandedCardId === card.id ? "Ocultar pagos" : "Pagos"}
+                        onPress={() => togglePayments(card)}
+                      />
+                    ) : null}
+                  </View>
+                  {card.period !== undefined && expandedCardId === card.id ? (
+                    <View style={styles.paymentPanel}>
+                      {paymentSummaryBusy || paymentSummary === undefined ? (
+                        <Text style={styles.meta}>
+                          {paymentSummaryBusy ? "Cargando pagos..." : "Sin datos de pago"}
+                        </Text>
+                      ) : (
+                        <>
+                          <Text style={styles.meta}>
+                            Total {formatAmountFromMinor(paymentSummary.purchaseTotalMinor)} {card.currency}
+                          </Text>
+                          <Text style={styles.meta}>
+                            Pagado {formatAmountFromMinor(paymentSummary.paymentTotalMinor)} {card.currency}
+                          </Text>
+                          <Text style={styles.meta}>
+                            Saldo {formatAmountFromMinor(paymentSummary.balanceMinor)} {card.currency}
+                          </Text>
+                          <Text style={[styles.meta, styles.statusText]}>
+                            {paymentStatusLabel(paymentSummary.paymentStatus)}
+                          </Text>
+                          <View style={styles.actions}>
+                            {can("transactions:write") ? (
+                              <GhostButton label="Pagar" onPress={() => openPayment(card)} />
+                            ) : null}
+                            {can("cards:write") && paymentSummary.paymentStatus !== "PAID" ? (
+                              <GhostButton label="Marcar como pagado" onPress={() => markPaid(card)} />
+                            ) : null}
+                          </View>
+                        </>
+                      )}
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
             </Card>
@@ -385,6 +590,7 @@ export function CardsScreen() {
         ) : (
           <>
             <TextField label="Moneda" onChangeText={setCurrency} value={currency} />
+            <MonthStepper onChange={setPeriodMonth} value={periodMonth} />
             <DateField label="Fecha de cierre" onChange={setClosingOn} timeZone={timezone} value={closingOn} />
             <DateField label="Fecha de vencimiento" onChange={setDueOn} timeZone={timezone} value={dueOn} />
           </>
@@ -419,6 +625,115 @@ export function CardsScreen() {
         <DateField label="Fecha de cierre" onChange={setClosingOn} timeZone={timezone} value={closingOn} />
         <DateField label="Fecha de vencimiento" onChange={setDueOn} timeZone={timezone} value={dueOn} />
       </FormSheet>
+      <FormSheet
+        busy={busy}
+        dirty={paymentDirty}
+        error={error}
+        onClose={closePayment}
+        onSubmit={() => {
+          if (token === undefined || paymentCard === undefined) {
+            return;
+          }
+          if (statementPaymentCategory === undefined) {
+            setError("No está disponible la categoría Pago de resumen");
+            return;
+          }
+          if (payAccountId === "") {
+            setError("Elegí una cuenta");
+            return;
+          }
+          if (paymentNeedsCloseConfirm && !payConfirmBeforeClose) {
+            setError("Confirmá que querés pagar antes del cierre");
+            return;
+          }
+          setBusy(true);
+          try {
+            const body: Record<string, unknown> = {
+              type: "EXPENSE",
+              amountMinor: parseAmountToMinor(payAmount),
+              occurredOn: payOccurredOn,
+              status: payStatus,
+              categoryId: statementPaymentCategory.id,
+              accountId: payAccountId,
+              cardId: paymentCard.id,
+              statementYearMonth: viewMonth,
+            };
+            if (payStatus === "APPROVED" && payApprovedOn !== "") {
+              body.approvedOn = payApprovedOn;
+            }
+            if (payDescription.trim() !== "") {
+              body.description = payDescription.trim();
+            }
+            if (payDetail.trim() !== "") {
+              body.detail = payDetail.trim();
+            }
+            void createTransaction(token, body)
+              .then(() => {
+                const cardId = paymentCard.id;
+                closePayment();
+                loadPaymentSummary(cardId);
+              })
+              .catch((cause: unknown) => setError(toErrorMessage(cause)))
+              .finally(() => setBusy(false));
+          } catch (cause: unknown) {
+            setError(toErrorMessage(cause));
+            setBusy(false);
+          }
+        }}
+        submitDisabled={paymentNeedsCloseConfirm && !payConfirmBeforeClose}
+        submitLabel="Registrar"
+        title={`Pago${paymentCard === undefined ? "" : ` · ${paymentCard.name}`}`}
+        visible={paymentOpen}
+      >
+        {paymentNeedsCloseConfirm ? (
+          <Pressable
+            onPress={() => setPayConfirmBeforeClose((current) => !current)}
+            style={styles.confirmRow}
+          >
+            <View style={[styles.checkbox, payConfirmBeforeClose ? styles.checkboxOn : undefined]} />
+            <Text style={styles.confirmText}>
+              El periodo todavía no cerró ({formatCalendarDate(paymentCard?.period?.closingOn)}). Confirmo que
+              quiero pagar antes del cierre.
+            </Text>
+          </Pressable>
+        ) : null}
+        <SelectField
+          label="Estado"
+          onChange={(next) => {
+            const nextStatus = next as TransactionStatus;
+            setPayStatus(nextStatus);
+            if (nextStatus === "PENDING") {
+              setPayApprovedOn("");
+            } else if (payApprovedOn === "") {
+              setPayApprovedOn(currentCalendarDate(timezone));
+            }
+          }}
+          options={[
+            { value: "APPROVED", label: "Aprobado" },
+            { value: "PENDING", label: "Pendiente" },
+          ]}
+          value={payStatus}
+        />
+        <AmountField label="Monto" onChangeText={setPayAmount} placeholder="1.234,56" value={payAmount} />
+        <DateField label="Fecha" onChange={setPayOccurredOn} timeZone={timezone} value={payOccurredOn} />
+        {payStatus === "APPROVED" ? (
+          <DateField label="Acreditación" onChange={setPayApprovedOn} timeZone={timezone} value={payApprovedOn} />
+        ) : null}
+        <SelectField
+          label="Cuenta"
+          onChange={setPayAccountId}
+          options={[
+            { value: "", label: "Elegí una cuenta" },
+            ...paymentAccounts.map((account) => ({
+              value: account.id,
+              label: `${account.name} (${account.currency})`,
+            })),
+          ]}
+          value={payAccountId}
+        />
+        <TextField label="Descripción" onChangeText={setPayDescription} value={payDescription} />
+        <TextField label="Detalle" onChangeText={setPayDetail} value={payDetail} />
+      </FormSheet>
     </Screen>
   );
 }
@@ -426,6 +741,44 @@ export function CardsScreen() {
 const styles = StyleSheet.create({
   totals: {
     gap: 4,
+  },
+  actions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  paymentPanel: {
+    marginTop: 8,
+    gap: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingTop: 8,
+  },
+  statusText: {
+    fontWeight: "700",
+  },
+  confirmRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.line,
+    marginTop: 2,
+  },
+  checkboxOn: {
+    backgroundColor: colors.teal,
+    borderColor: colors.teal,
+  },
+  confirmText: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: 13,
   },
   meta: {
     color: colors.muted,

@@ -154,6 +154,7 @@ export function FormSheet({
   onSubmit,
   onDelete,
   children,
+  submitDisabled = false,
 }: {
   visible: boolean;
   title: string;
@@ -165,6 +166,7 @@ export function FormSheet({
   onSubmit: () => void;
   onDelete?: (() => void) | undefined;
   children: ReactNode;
+  submitDisabled?: boolean;
 }) {
   const { backgroundColor } = useAppearance();
 
@@ -189,8 +191,14 @@ export function FormSheet({
           <Text ellipsizeMode="tail" numberOfLines={1} style={styles.sheetTitle}>
             {title}
           </Text>
-          <Pressable disabled={busy} onPress={onSubmit} style={styles.sheetHeaderSide}>
-            {busy ? <ActivityIndicator color={colors.teal} /> : <Text style={styles.sheetLinkStrong}>{submitLabel}</Text>}
+          <Pressable disabled={busy || submitDisabled} onPress={onSubmit} style={styles.sheetHeaderSide}>
+            {busy ? (
+              <ActivityIndicator color={colors.teal} />
+            ) : (
+              <Text style={[styles.sheetLinkStrong, submitDisabled ? styles.sheetLinkDisabled : undefined]}>
+                {submitLabel}
+              </Text>
+            )}
           </Pressable>
         </View>
         <KeyboardAvoidingView
@@ -317,6 +325,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "right",
     minWidth: 72,
+  },
+  sheetLinkDisabled: {
+    color: colors.muted,
   },
   flex: {
     flex: 1,
