@@ -96,6 +96,27 @@ export function FilterRow({ children }: { children: ReactNode }) {
   return <View style={styles.filters}>{children}</View>;
 }
 
+export function CollapsibleFilters({
+  children,
+  activeCount = 0,
+}: {
+  children: ReactNode;
+  activeCount?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const countLabel = activeCount > 0 ? ` (${activeCount})` : "";
+  return (
+    <View style={styles.collapse}>
+      <Pressable onPress={() => setOpen((value) => !value)} style={styles.collapseHeader}>
+        <Text style={styles.collapseLabel}>
+          Filtros{countLabel} {open ? "▲" : "▼"}
+        </Text>
+      </Pressable>
+      {open ? <View style={styles.collapseBody}>{children}</View> : null}
+    </View>
+  );
+}
+
 export function SortSelect({
   value,
   onChange,
@@ -252,6 +273,21 @@ const styles = StyleSheet.create({
   filters: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: 8,
+  },
+  collapse: {
+    gap: 8,
+  },
+  collapseHeader: {
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+  },
+  collapseLabel: {
+    color: colors.teal,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  collapseBody: {
     gap: 8,
   },
   chip: {

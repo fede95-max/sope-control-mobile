@@ -8,8 +8,10 @@ import { useAuth } from "../auth/AuthContext";
 import { usePermissions } from "../auth/usePermissions";
 import type { MoreStackParamList } from "../navigation/types";
 import { formatCalendarDate } from "../money";
-import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
+import { Chip, CollapsibleFilters, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { Card as ListCard, Row } from "../ui/list";
+import { ListTotalsBar } from "../ui/ListTotalsBar";
+import { formatMassImportTotals, summarizeMassImports } from "../ui/listTotals";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
 import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
@@ -104,18 +106,21 @@ export function MassImportsScreen() {
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <SearchBar onChange={setQuery} value={query} />
-        <FilterRow>
-          <Chip active={statusFilter === ""} label="Todos" onPress={() => setStatusFilter("")} />
-          <Chip active={statusFilter === "DRAFT"} label="Borrador" onPress={() => setStatusFilter("DRAFT")} />
-          <Chip active={statusFilter === "CONFIRMED"} label="Confirmado" onPress={() => setStatusFilter("CONFIRMED")} />
-          <Chip active={statusFilter === "CANCELLED"} label="Cancelado" onPress={() => setStatusFilter("CANCELLED")} />
-          <Chip
-            active={showCancelled}
-            label="Mostrar cancelados"
-            onPress={() => setShowCancelled((current) => !current)}
-          />
-        </FilterRow>
+        <CollapsibleFilters activeCount={(statusFilter === "" ? 0 : 1) + (showCancelled ? 1 : 0)}>
+          <FilterRow>
+            <Chip active={statusFilter === ""} label="Todos" onPress={() => setStatusFilter("")} />
+            <Chip active={statusFilter === "DRAFT"} label="Borrador" onPress={() => setStatusFilter("DRAFT")} />
+            <Chip active={statusFilter === "CONFIRMED"} label="Confirmado" onPress={() => setStatusFilter("CONFIRMED")} />
+            <Chip active={statusFilter === "CANCELLED"} label="Cancelado" onPress={() => setStatusFilter("CANCELLED")} />
+            <Chip
+              active={showCancelled}
+              label="Mostrar cancelados"
+              onPress={() => setShowCancelled((current) => !current)}
+            />
+          </FilterRow>
+        </CollapsibleFilters>
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        <ListTotalsBar text={formatMassImportTotals(summarizeMassImports(filtered))} />
         <ErrorBanner error={error} />
         {sorted.length === 0 ? (
           <EmptyState text="No hay movimientos masivos." />
