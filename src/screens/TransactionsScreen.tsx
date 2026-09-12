@@ -24,9 +24,11 @@ import {
 } from "../money";
 import { CategoryChip, ColoredChip } from "../ui/CategoryChip";
 import { AuditFooter } from "../ui/AuditFooter";
-import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
+import { Chip, CollapsibleFilters, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
 import { Amount, Card as ListCard, Row } from "../ui/list";
+import { ListTotalsBar } from "../ui/ListTotalsBar";
+import { formatTypeMoneyTotals, summarizeTypeMoney } from "../ui/listTotals";
 import {
   EmptyState,
   ErrorBanner,
@@ -99,6 +101,7 @@ export function TransactionsScreen() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("");
   const [cardFilter, setCardFilter] = useState("");
+  const [installmentFilter, setInstallmentFilter] = useState("");
   const [sortId, setSortId] = useState("date-desc");
 
   function reload(isStale: () => boolean = () => false) {
@@ -166,6 +169,9 @@ export function TransactionsScreen() {
       if (cardFilter !== "" && transaction.cardId !== cardFilter) {
         return false;
       }
+      if (installmentFilter === "INSTALLMENTS" && transaction.installmentCount === undefined) {
+        return false;
+      }
       return matchesText(
         [
           formatCalendarDate(listDate(transaction)),
@@ -181,7 +187,7 @@ export function TransactionsScreen() {
         query,
       );
     });
-  }, [transactions, query, typeFilter, statusFilter, categoryFilter, accountFilter, cardFilter, categories, accounts, cards]);
+  }, [transactions, query, typeFilter, statusFilter, categoryFilter, accountFilter, cardFilter, installmentFilter, categories, accounts, cards]);
   const sortOptions = useMemo((): Array<SortOption<Transaction>> => {
     const names = new Map(categories.map((category) => [category.id, category.name]));
     return [
@@ -323,32 +329,46 @@ export function TransactionsScreen() {
       >
         <MonthStepper onChange={setMonth} value={month} />
         <SearchBar onChange={setQuery} value={query} />
-        <FilterRow>
-          <Chip active={typeFilter === ""} label="Todos" onPress={() => setTypeFilter("")} />
-          <Chip active={typeFilter === "EXPENSE"} label="Egreso" onPress={() => setTypeFilter("EXPENSE")} />
-          <Chip active={typeFilter === "INCOME"} label="Ingreso" onPress={() => setTypeFilter("INCOME")} />
-          <Chip active={typeFilter === "TRANSFER"} label={typeLabel("TRANSFER")} onPress={() => setTypeFilter("TRANSFER")} />
-          <Chip active={statusFilter === "PENDING"} label="Pendiente" onPress={() => setStatusFilter(statusFilter === "PENDING" ? "" : "PENDING")} />
-        </FilterRow>
-        <SelectField
-          label="Categoría"
-          onChange={setCategoryFilter}
-          options={[{ value: "", label: "Todas las categorías" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]}
-          value={categoryFilter}
-        />
-        <SelectField
-          label="Cuenta"
-          onChange={setAccountFilter}
-          options={[{ value: "", label: "Todas las cuentas" }, ...accounts.map((account) => ({ value: account.id, label: account.name }))]}
-          value={accountFilter}
-        />
-        <SelectField
-          label="Tarjeta"
-          onChange={setCardFilter}
-          options={[{ value: "", label: "Todas las tarjetas" }, ...cards.map((card) => ({ value: card.id, label: card.name }))]}
-          value={cardFilter}
-        />
+        <CollapsibleFilters
+          activeCount={
+            [typeFilter, statusFilter, categoryFilter, accountFilter, cardFilter, installmentFilter].filter(
+              (value) => value !== "",
+            ).length
+          }
+        >
+          <FilterRow>
+            <Chip active={typeFilter === ""} label="Todos" onPress={() => setTypeFilter("")} />
+            <Chip active={typeFilter === "EXPENSE"} label="Egreso" onPress={() => setTypeFilter("EXPENSE")} />
+            <Chip active={typeFilter === "INCOME"} label="Ingreso" onPress={() => setTypeFilter("INCOME")} />
+            <Chip active={typeFilter === "TRANSFER"} label={typeLabel("TRANSFER")} onPress={() => setTypeFilter("TRANSFER")} />
+            <Chip active={statusFilter === "PENDING"} label="Pendiente" onPress={() => setStatusFilter(statusFilter === "PENDING" ? "" : "PENDING")} />
+            <Chip
+              active={installmentFilter === "INSTALLMENTS"}
+              label="En cuotas"
+              onPress={() => setInstallmentFilter(installmentFilter === "INSTALLMENTS" ? "" : "INSTALLMENTS")}
+            />
+          </FilterRow>
+          <SelectField
+            label="Categoría"
+            onChange={setCategoryFilter}
+            options={[{ value: "", label: "Todas las categorías" }, ...categories.map((category) => ({ value: category.id, label: category.name }))]}
+            value={categoryFilter}
+          />
+          <SelectField
+            label="Cuenta"
+            onChange={setAccountFilter}
+            options={[{ value: "", label: "Todas las cuentas" }, ...accounts.map((account) => ({ value: account.id, label: account.name }))]}
+            value={accountFilter}
+          />
+          <SelectField
+            label="Tarjeta"
+            onChange={setCardFilter}
+            options={[{ value: "", label: "Todas las tarjetas" }, ...cards.map((card) => ({ value: card.id, label: card.name }))]}
+            value={cardFilter}
+          />
+        </CollapsibleFilters>
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        <ListTotalsBar lines={formatTypeMoneyTotals(summarizeTypeMoney(filteredTransactions))} />
         <ErrorBanner error={error} />
         {sortedTransactions.length === 0 ? (
           <EmptyState text="No hay movimientos." />

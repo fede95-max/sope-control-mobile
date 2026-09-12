@@ -28,9 +28,11 @@ import {
 import { colors, space } from "../theme";
 import { AuditFooter } from "../ui/AuditFooter";
 import { CATEGORY_COLOR_PRESETS, ColoredChip } from "../ui/CategoryChip";
-import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
+import { Chip, CollapsibleFilters, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { AmountField, DateField, SelectField, TextField } from "../ui/fields";
 import { Card, Row } from "../ui/list";
+import { ListTotalsBar } from "../ui/ListTotalsBar";
+import { formatLabeledTotals, summarizeCardTotals } from "../ui/listTotals";
 import {
   EmptyState,
   ErrorBanner,
@@ -365,12 +367,15 @@ export function CardsScreen() {
       >
         <MonthStepper onChange={setViewMonth} value={viewMonth} />
         <SearchBar onChange={setQuery} value={query} />
-        <FilterRow>
-          <Chip active={kindFilter === ""} label="Todas" onPress={() => setKindFilter("")} />
-          <Chip active={kindFilter === "CREDIT"} label="Crédito" onPress={() => setKindFilter("CREDIT")} />
-          <Chip active={kindFilter === "DEBIT"} label="Débito" onPress={() => setKindFilter("DEBIT")} />
-        </FilterRow>
+        <CollapsibleFilters activeCount={kindFilter === "" ? 0 : 1}>
+          <FilterRow>
+            <Chip active={kindFilter === ""} label="Todas" onPress={() => setKindFilter("")} />
+            <Chip active={kindFilter === "CREDIT"} label="Crédito" onPress={() => setKindFilter("CREDIT")} />
+            <Chip active={kindFilter === "DEBIT"} label="Débito" onPress={() => setKindFilter("DEBIT")} />
+          </FilterRow>
+        </CollapsibleFilters>
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        <ListTotalsBar text={formatLabeledTotals("Total", summarizeCardTotals(filteredCards))} />
         <ErrorBanner error={error} />
         {missingPeriod.length > 0 ? (
           <Card onPress={() => openPeriod(missingPeriod[0]!)}>

@@ -8,8 +8,10 @@ import { useAsyncReload } from "../hooks/useAsyncReload";
 import { currentYearMonth, formatAmountFromMinor } from "../money";
 import { colors, space } from "../theme";
 import { CategoryChip } from "../ui/CategoryChip";
-import { Chip, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
+import { Chip, CollapsibleFilters, FilterRow, GhostButton, MonthStepper, SearchBar, SortSelect } from "../ui/controls";
 import { Card, Row, Amount } from "../ui/list";
+import { ListTotalsBar } from "../ui/ListTotalsBar";
+import { formatLabeledTotals, sumByCurrency } from "../ui/listTotals";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
 import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
@@ -140,19 +142,27 @@ export function DashboardScreen() {
         <Text style={styles.section}>Gastos por categoría</Text>
         <SearchBar onChange={setQuery} value={query} />
         {currencies.length > 1 ? (
-          <FilterRow>
-            <Chip active={currencyFilter === ""} label="Todas" onPress={() => setCurrencyFilter("")} />
-            {currencies.map((currency) => (
-              <Chip
-                key={currency}
-                active={currencyFilter === currency}
-                label={currency}
-                onPress={() => setCurrencyFilter(currency)}
-              />
-            ))}
-          </FilterRow>
+          <CollapsibleFilters activeCount={currencyFilter === "" ? 0 : 1}>
+            <FilterRow>
+              <Chip active={currencyFilter === ""} label="Todas" onPress={() => setCurrencyFilter("")} />
+              {currencies.map((currency) => (
+                <Chip
+                  key={currency}
+                  active={currencyFilter === currency}
+                  label={currency}
+                  onPress={() => setCurrencyFilter(currency)}
+                />
+              ))}
+            </FilterRow>
+          </CollapsibleFilters>
         ) : null}
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        <ListTotalsBar
+          text={formatLabeledTotals(
+            "Total",
+            sumByCurrency(filteredRows, (row) => row.amountMinor, (row) => row.currency),
+          )}
+        />
         {sortedRows.length === 0 ? (
           <EmptyState text="Nada para mostrar." />
         ) : (

@@ -24,10 +24,12 @@ import {
 } from "../money";
 import { colors, space } from "../theme";
 import { CategoryChip } from "../ui/CategoryChip";
-import { CheckBox, Chip, FilterRow, GhostButton, PrimaryButton, SearchBar, SortSelect } from "../ui/controls";
+import { CheckBox, Chip, CollapsibleFilters, FilterRow, GhostButton, PrimaryButton, SearchBar, SortSelect } from "../ui/controls";
 import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
 import { AuditFooter } from "../ui/AuditFooter";
 import { Amount, Card as ListCard, Row } from "../ui/list";
+import { ListTotalsBar } from "../ui/ListTotalsBar";
+import { formatSelectionNetTotals } from "../ui/listTotals";
 import {
   EmptyState,
   ErrorBanner,
@@ -328,13 +330,16 @@ export function MassImportReviewScreen() {
           </>
         )}
         <SearchBar onChange={setQuery} value={query} />
-        <FilterRow>
-          <Chip active={typeFilter === ""} label="Todos" onPress={() => setTypeFilter("")} />
-          <Chip active={typeFilter === "EXPENSE"} label="Egreso" onPress={() => setTypeFilter("EXPENSE")} />
-          <Chip active={typeFilter === "INCOME"} label="Ingreso" onPress={() => setTypeFilter("INCOME")} />
-          <Chip active={selectedOnly} label="Solo seleccionados" onPress={() => setSelectedOnly((current) => !current)} />
-        </FilterRow>
+        <CollapsibleFilters activeCount={(typeFilter === "" ? 0 : 1) + (selectedOnly ? 1 : 0)}>
+          <FilterRow>
+            <Chip active={typeFilter === ""} label="Todos" onPress={() => setTypeFilter("")} />
+            <Chip active={typeFilter === "EXPENSE"} label="Egreso" onPress={() => setTypeFilter("EXPENSE")} />
+            <Chip active={typeFilter === "INCOME"} label="Ingreso" onPress={() => setTypeFilter("INCOME")} />
+            <Chip active={selectedOnly} label="Solo seleccionados" onPress={() => setSelectedOnly((current) => !current)} />
+          </FilterRow>
+        </CollapsibleFilters>
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        <ListTotalsBar lines={formatSelectionNetTotals(draftItems)} />
         {sortedItems.length === 0 ? (
           <EmptyState text="No hay movimientos en este lote." />
         ) : (

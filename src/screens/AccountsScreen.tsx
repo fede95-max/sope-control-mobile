@@ -9,9 +9,11 @@ import { formatAmountFromMinor } from "../money";
 import { colors, space } from "../theme";
 import { AuditFooter } from "../ui/AuditFooter";
 import { CATEGORY_COLOR_PRESETS, ColoredChip } from "../ui/CategoryChip";
-import { Chip, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
+import { Chip, CollapsibleFilters, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { SelectField, TextField } from "../ui/fields";
 import { Amount, Card, Row } from "../ui/list";
+import { ListTotalsBar } from "../ui/ListTotalsBar";
+import { formatLabeledTotals, sumByCurrency } from "../ui/listTotals";
 import {
   EmptyState,
   ErrorBanner,
@@ -115,13 +117,21 @@ export function AccountsScreen() {
         refreshControl={<RefreshControl onRefresh={reload} refreshing={busy} />}
       >
         <SearchBar onChange={setQuery} value={query} />
-        <FilterRow>
-          <Chip active={typeFilter === ""} label="Todas" onPress={() => setTypeFilter("")} />
-          <Chip active={typeFilter === "CASH"} label="Efectivo" onPress={() => setTypeFilter("CASH")} />
-          <Chip active={typeFilter === "BANK"} label="Banco" onPress={() => setTypeFilter("BANK")} />
-          <Chip active={typeFilter === "WALLET"} label="Billetera" onPress={() => setTypeFilter("WALLET")} />
-        </FilterRow>
+        <CollapsibleFilters activeCount={typeFilter === "" ? 0 : 1}>
+          <FilterRow>
+            <Chip active={typeFilter === ""} label="Todas" onPress={() => setTypeFilter("")} />
+            <Chip active={typeFilter === "CASH"} label="Efectivo" onPress={() => setTypeFilter("CASH")} />
+            <Chip active={typeFilter === "BANK"} label="Banco" onPress={() => setTypeFilter("BANK")} />
+            <Chip active={typeFilter === "WALLET"} label="Billetera" onPress={() => setTypeFilter("WALLET")} />
+          </FilterRow>
+        </CollapsibleFilters>
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
+        <ListTotalsBar
+          text={formatLabeledTotals(
+            "Saldo total",
+            sumByCurrency(filteredAccounts, (account) => account.balanceMinor, (account) => account.currency),
+          )}
+        />
         <ErrorBanner error={error} />
         {sortedAccounts.length === 0 ? (
           <EmptyState text="Todavía no hay cuentas." />

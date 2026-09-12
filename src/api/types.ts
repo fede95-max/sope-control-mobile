@@ -268,7 +268,10 @@ export type MassImport = {
   draftItems: MassImportDraftItem[];
   fileCount: number;
   detectedCount: number;
+  detectedTotalMinor: number;
   confirmedCount: number | undefined;
+  confirmedTotalMinor: number | undefined;
+  currency: string | undefined;
   createdAt: string;
   confirmedAt: string | undefined;
 } & AuditFields;
