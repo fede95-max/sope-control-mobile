@@ -134,3 +134,70 @@ export function formatMassImportTotals(totals: MassImportMoneyTotal[]): string {
     })
     .join(" · ");
 }
+
+export type NetDraftItem = {
+  selected: boolean;
+  type: string;
+  amountMinor: number;
+  currency: string;
+};
+
+export function computeItemNetMinor(item: { type: string; amountMinor: number }): number {
+  if (item.type === "INCOME") {
+    return item.amountMinor;
+  }
+  if (item.type === "EXPENSE") {
+    return -item.amountMinor;
+  }
+  return 0;
+}
+
+export function summarizeNetBySelection(items: NetDraftItem[], selected: boolean): CurrencyTotal[] {
+  return sumByCurrency(
+    items.filter((item) => item.selected === selected),
+    computeItemNetMinor,
+    (item) => item.currency,
+  );
+}
+
+function formatCurrencyTotals(totals: CurrencyTotal[]): string {
+  if (totals.length === 0) {
+    return "0,00";
+  }
+  return totals
+    .map((item) => {
+      const amount = formatAmountFromMinor(item.amountMinor);
+      return item.currency === "" ? amount : `${item.currency}: ${amount}`;
+    })
+    .join(" · ");
+}
+
+export function formatNetBySelection(items: NetDraftItem[], selected: boolean): string {
+  return formatCurrencyTotals(summarizeNetBySelection(items, selected));
+}
+
+export function formatMassImportRecordTotals(item: { draftItems: NetDraftItem[] }): string {
+  const confirmed = new Map(summarizeNetBySelection(item.draftItems, true).map((row) => [row.currency, row.amountMinor]));
+  const unconfirmed = new Map(
+    summarizeNetBySelection(item.draftItems, false).map((row) => [row.currency, row.amountMinor]),
+  );
+  const currencies = [...new Set([...confirmed.keys(), ...unconfirmed.keys()])].sort((left, right) =>
+    left.localeCompare(right),
+  );
+  if (currencies.length === 0) {
+    return "0,00 confirmado · 0,00 sin confirmar";
+  }
+  return currencies
+    .map((currency) => {
+      const amounts = `${formatAmountFromMinor(confirmed.get(currency) ?? 0)} confirmado · ${formatAmountFromMinor(unconfirmed.get(currency) ?? 0)} sin confirmar`;
+      return currency === "" ? amounts : `${currency}: ${amounts}`;
+    })
+    .join(" · ");
+}
+
+export function formatSelectionNetTotals(draftItems: NetDraftItem[]): string[] {
+  return [
+    formatLabeledTotals("Confirmados:", summarizeNetBySelection(draftItems, true)),
+    formatLabeledTotals("Sin confirmar:", summarizeNetBySelection(draftItems, false)),
+  ];
+}

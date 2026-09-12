@@ -10,8 +10,7 @@ import type { MoreStackParamList } from "../navigation/types";
 import { formatCalendarDate } from "../money";
 import { Chip, CollapsibleFilters, FilterRow, GhostButton, SearchBar, SortSelect } from "../ui/controls";
 import { Card as ListCard, Row } from "../ui/list";
-import { ListTotalsBar } from "../ui/ListTotalsBar";
-import { formatMassImportTotals, summarizeMassImports } from "../ui/listTotals";
+import { formatMassImportRecordTotals } from "../ui/listTotals";
 import { EmptyState, ErrorBanner, Screen, matchesText, screenContentStyle, toErrorMessage } from "../ui/primitives";
 import { compareNumber, compareText, useSortedItems, type SortOption } from "../ui/sort";
 
@@ -46,7 +45,7 @@ export function MassImportsScreen() {
   const [error, setError] = useState<string | undefined>(undefined);
   const [query, setQuery] = useState("");
   const [showCancelled, setShowCancelled] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("DRAFT");
   const [sortId, setSortId] = useState("date-desc");
 
   function reload() {
@@ -120,7 +119,6 @@ export function MassImportsScreen() {
           </FilterRow>
         </CollapsibleFilters>
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
-        <ListTotalsBar text={formatMassImportTotals(summarizeMassImports(filtered))} />
         <ErrorBanner error={error} />
         {sorted.length === 0 ? (
           <EmptyState text="No hay movimientos masivos." />
@@ -128,7 +126,7 @@ export function MassImportsScreen() {
           sorted.map((item) => (
             <ListCard key={item.id} onPress={() => navigation.navigate("MassImportReview", { id: item.id })}>
               <Row
-                meta={`${item.fileCount} archivos · ${item.detectedCount} detectados`}
+                meta={`${item.fileCount} archivos · ${formatMassImportRecordTotals(item)}`}
                 subtitle={`${formatCalendarDate(item.createdAt.slice(0, 10))} · ${statusLabel(item.status)}`}
                 title={targetLabel(item, accounts, cards)}
               />

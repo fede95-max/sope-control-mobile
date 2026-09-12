@@ -29,7 +29,7 @@ import { DateField, SelectField, TextField, AmountField } from "../ui/fields";
 import { AuditFooter } from "../ui/AuditFooter";
 import { Amount, Card as ListCard, Row } from "../ui/list";
 import { ListTotalsBar } from "../ui/ListTotalsBar";
-import { formatTypeMoneyTotals, summarizeTypeMoney } from "../ui/listTotals";
+import { formatSelectionNetTotals } from "../ui/listTotals";
 import {
   EmptyState,
   ErrorBanner,
@@ -339,7 +339,7 @@ export function MassImportReviewScreen() {
           </FilterRow>
         </CollapsibleFilters>
         <SortSelect value={sortId} onChange={setSortId} options={sortOptions} />
-        <ListTotalsBar lines={formatTypeMoneyTotals(summarizeTypeMoney(visibleItems))} />
+        <ListTotalsBar lines={formatSelectionNetTotals(draftItems)} />
         {sortedItems.length === 0 ? (
           <EmptyState text="No hay movimientos en este lote." />
         ) : (
